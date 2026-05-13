@@ -1,0 +1,1528 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TileCRM</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@300;400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root {
+  --sidebar-w: 220px;
+  --bg: #F4F3EF;
+  --card: #FFFFFF;
+  --border: #E8E6DF;
+  --border2: #D4D0C5;
+  --text: #1A1A18;
+  --text2: #6A6760;
+  --text3: #A8A49C;
+  --accent: #2B59E0;
+  --accent-bg: #EDF1FD;
+  --accent-hover: #2348C4;
+  --green: #1A8A5A;
+  --green-bg: #E7F7EF;
+  --amber: #B86A00;
+  --amber-bg: #FEF3E0;
+  --red: #C0392B;
+  --red-bg: #FDECEA;
+  --purple: #6B3FA0;
+  --purple-bg: #F3EDFB;
+  --radius: 10px;
+  --radius-sm: 7px;
+  --shadow: 0 1px 3px rgba(0,0,0,0.06);
+  --shadow-md: 0 3px 10px rgba(0,0,0,0.08);
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body { font-family: 'Noto Sans JP', sans-serif; background: var(--bg); color: var(--text); font-size: 14px; line-height: 1.6; display: flex; }
+button { cursor: pointer; border: none; background: none; font-family: inherit; font-size: inherit; }
+input, textarea, select { font-family: inherit; font-size: 14px; }
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+
+#sidebar {
+  width: var(--sidebar-w); min-height: 100vh; flex-shrink: 0;
+  background: var(--card); border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  position: sticky; top: 0; height: 100vh; overflow-y: auto;
+}
+.sidebar-logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
+.sidebar-logo h1 { font-size: 18px; font-weight: 700; letter-spacing: -0.5px; }
+.sidebar-logo p { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.sidebar-nav { padding: 12px 10px; flex: 1; }
+.nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-radius: var(--radius-sm); color: var(--text2); font-size: 13px; font-weight: 500; cursor: pointer; transition: all 0.12s; margin-bottom: 2px; }
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active { background: var(--accent-bg); color: var(--accent); }
+.nav-item svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; flex-shrink: 0; }
+.nav-section { font-size: 10px; font-weight: 700; color: var(--text3); letter-spacing: 0.08em; text-transform: uppercase; padding: 14px 12px 4px; }
+
+#main { flex: 1; min-height: 100vh; overflow-y: auto; padding: 32px 36px; }
+
+.page-header { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 24px; }
+.page-header h2 { font-size: 22px; font-weight: 700; letter-spacing: -0.5px; }
+.page-header p { font-size: 13px; color: var(--text2); margin-top: 2px; }
+
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; border-radius: var(--radius-sm); font-size: 13px; font-weight: 500; transition: all 0.12s; cursor: pointer; border: 1px solid transparent; }
+.btn-primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--card); color: var(--text2); border-color: var(--border); }
+.btn-secondary:hover { border-color: var(--border2); color: var(--text); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+.btn svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; }
+
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+
+.card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); }
+.card-header { padding: 14px 18px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+.card-header h3 { font-size: 12px; font-weight: 700; color: var(--text2); letter-spacing: 0.04em; text-transform: uppercase; }
+.card-body { padding: 6px 0; }
+
+.stat-card { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); }
+.stat-card .num { font-size: 36px; font-weight: 700; font-family: 'DM Mono', monospace; letter-spacing: -2px; line-height: 1; }
+.stat-card .label { font-size: 12px; color: var(--text2); margin-top: 6px; }
+.stat-card .sub { font-size: 11px; color: var(--text3); margin-top: 3px; }
+
+.table { width: 100%; border-collapse: collapse; }
+.table th { font-size: 11px; font-weight: 700; color: var(--text3); text-align: left; padding: 8px 16px; border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.06em; white-space: nowrap; }
+.table td { padding: 11px 16px; border-bottom: 1px solid var(--border); font-size: 13px; vertical-align: middle; }
+.table tr:last-child td { border-bottom: none; }
+.table tbody tr:hover td { background: var(--bg); cursor: pointer; }
+.table tr.done td { opacity: 0.5; }
+
+.badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 99px; font-size: 11px; font-weight: 500; white-space: nowrap; }
+.badge-green { background: var(--green-bg); color: var(--green); }
+.badge-amber { background: var(--amber-bg); color: var(--amber); }
+.badge-red { background: var(--red-bg); color: var(--red); }
+.badge-blue { background: var(--accent-bg); color: var(--accent); }
+.badge-gray { background: #F1EFE8; color: var(--text2); }
+.badge-rank-s { background: #FDF8E6; color: #7A5000; font-weight: 700; border: 1px solid #D4A800; }
+.badge-rank-a { background: #FDECEA; color: #9B2618; font-weight: 700; }
+.badge-rank-b { background: #FEF3E0; color: #8B4F00; font-weight: 700; }
+.badge-rank-c { background: #F1EFE8; color: #5A5755; font-weight: 700; }
+.rank-selector { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 6px; }
+.rank-card { border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px 8px; cursor: pointer; transition: all 0.12s; text-align: center; background: var(--card); }
+.rank-card:hover { border-color: var(--border2); background: var(--bg); }
+.rank-card.sel-S { border-color: #D4A800 !important; background: #FDF8E6 !important; }
+.rank-card.sel-A { border-color: var(--red) !important; background: var(--red-bg) !important; }
+.rank-card.sel-B { border-color: var(--amber) !important; background: var(--amber-bg) !important; }
+.rank-card.sel-C { border-color: var(--border2) !important; background: #F8F7F3 !important; }
+.rank-card .rl { font-size: 22px; font-weight: 700; font-family: 'DM Mono',monospace; line-height: 1; margin-bottom: 3px; }
+.rank-card .rn { font-size: 11px; font-weight: 600; margin-bottom: 2px; }
+.rank-card .rf { font-size: 10px; color: var(--text3); }
+.badge-gold { background: #FDF3DC; color: #8B6000; border: 1px solid #E8C84A; }
+.badge-rank-s { background: #FDF3DC; color: #7A5000; font-weight: 700; border: 1px solid #D4A800; }
+.badge-rank-a { background: #FDECEA; color: #9B2618; font-weight: 700; }
+.badge-rank-b { background: #FEF3E0; color: #8B4F00; font-weight: 700; }
+.badge-rank-c { background: #F1EFE8; color: #5A5755; font-weight: 700; }
+.rank-selector { display: grid; grid-template-columns: repeat(4,1fr); gap: 10px; margin-top: 4px; }
+.rank-card { border: 2px solid var(--border); border-radius: var(--radius-sm); padding: 12px 10px; cursor: pointer; transition: all 0.12s; text-align: center; }
+.rank-card:hover { border-color: var(--border2); }
+.rank-card.selected-S { border-color: #D4A800; background: #FDF8E6; }
+.rank-card.selected-A { border-color: var(--red); background: var(--red-bg); }
+.rank-card.selected-B { border-color: var(--amber); background: var(--amber-bg); }
+.rank-card.selected-C { border-color: var(--border2); background: #F8F7F3; }
+.rank-card .rank-letter { font-size: 20px; font-weight: 700; font-family: 'DM Mono', monospace; line-height: 1; margin-bottom: 4px; }
+.rank-card .rank-name { font-size: 11px; font-weight: 600; margin-bottom: 3px; }
+.rank-card .rank-freq { font-size: 10px; color: var(--text3); }
+
+.form-row { display: grid; gap: 16px; margin-bottom: 16px; }
+.form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+.form-row.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
+.form-group { display: flex; flex-direction: column; gap: 5px; }
+.form-label { font-size: 12px; font-weight: 500; color: var(--text2); }
+.form-label span { color: var(--red); }
+.form-control { border: 1.5px solid var(--border); border-radius: var(--radius-sm); padding: 8px 11px; font-size: 13px; color: var(--text); background: var(--card); transition: border-color 0.12s; outline: none; width: 100%; }
+.form-control:focus { border-color: var(--accent); }
+textarea.form-control { resize: vertical; min-height: 90px; }
+.form-hint { font-size: 11px; color: var(--text3); }
+.form-section-title { font-size: 11px; font-weight: 700; color: var(--text3); letter-spacing: 0.06em; text-transform: uppercase; margin-bottom: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 200; display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none; transition: opacity 0.18s; }
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal { background: var(--bg); width: 520px; max-height: 85vh; border-radius: 14px; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,0.15); transform: scale(0.97); transition: transform 0.2s; }
+.modal-overlay.open .modal { transform: scale(1); }
+.modal-header { padding: 20px 24px 16px; display: flex; align-items: center; justify-content: space-between; border-bottom: 1px solid var(--border); position: sticky; top: 0; background: var(--bg); z-index: 1; }
+.modal-title { font-size: 16px; font-weight: 700; }
+.modal-close { width: 28px; height: 28px; border-radius: 50%; background: var(--border); display: flex; align-items: center; justify-content: center; font-size: 16px; color: var(--text2); cursor: pointer; }
+.modal-close:hover { background: var(--border2); }
+.modal-body { padding: 20px 24px; }
+.modal-footer { padding: 16px 24px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+.stars { color: #F5A623; letter-spacing: 1px; font-size: 12px; }
+.text-muted { color: var(--text2); }
+.text-sm { font-size: 12px; }
+.mono { font-family: 'DM Mono', monospace; }
+
+.tl-item { display: flex; gap: 14px; padding: 12px 0; position: relative; }
+.tl-item:not(:last-child)::before { content: ''; position: absolute; left: 15px; top: 42px; bottom: 0; width: 2px; background: var(--border); }
+.tl-dot { width: 30px; height: 30px; border-radius: 50%; background: var(--accent-bg); border: 2px solid var(--accent); display: flex; align-items: center; justify-content: center; font-size: 12px; flex-shrink: 0; z-index: 1; }
+.tl-body { flex: 1; background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-sm); padding: 12px 14px; }
+.tl-date { font-size: 11px; color: var(--text3); font-family: 'DM Mono', monospace; margin-bottom: 5px; }
+.tl-text { font-size: 13px; line-height: 1.65; }
+.tl-action { margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--border); font-size: 12px; color: var(--accent); }
+.tl-next { font-size: 11px; color: var(--green); font-weight: 500; margin-top: 4px; }
+
+.ai-panel { background: linear-gradient(135deg, #EDF1FD, #F3EDFB); border: 1px solid #C8D4F9; border-radius: var(--radius); padding: 16px; margin-top: 16px; }
+.ai-panel-header { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.ai-badge { background: var(--accent); color: #fff; font-size: 10px; font-weight: 700; padding: 2px 8px; border-radius: 99px; }
+.ai-text { font-size: 13px; line-height: 1.75; }
+
+.search-wrap { position: relative; }
+.search-wrap input { padding-left: 32px; }
+.search-icon { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text3); pointer-events: none; }
+.search-icon svg { width: 14px; height: 14px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.tab-bar { display: flex; gap: 4px; }
+.tab { padding: 6px 14px; border-radius: 99px; font-size: 12px; font-weight: 500; cursor: pointer; color: var(--text2); border: 1.5px solid transparent; transition: all 0.12s; }
+.tab:hover { background: var(--card); border-color: var(--border); }
+.tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+.todo-check { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--border2); display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; transition: all 0.12s; }
+.todo-check.done { background: var(--green); border-color: var(--green); }
+.todo-check.done::after { content: '✓'; color: #fff; font-size: 10px; font-weight: 700; }
+
+.detail-back { display: inline-flex; align-items: center; gap: 5px; color: var(--accent); font-size: 13px; cursor: pointer; margin-bottom: 12px; }
+.detail-back:hover { text-decoration: underline; }
+.detail-back svg { width: 16px; height: 16px; stroke: currentColor; fill: none; stroke-width: 2; }
+
+.info-table { width: 100%; border-collapse: collapse; }
+.info-table td { padding: 9px 0; vertical-align: top; border-bottom: 1px solid var(--border); }
+.info-table tr:last-child td { border-bottom: none; }
+.info-table td:first-child { width: 110px; font-size: 12px; color: var(--text3); }
+.info-table td:last-child { font-size: 13px; }
+
+.empty { text-align: center; padding: 40px 20px; color: var(--text3); }
+.empty .icon { font-size: 32px; margin-bottom: 8px; }
+.empty p { font-size: 14px; }
+
+@keyframes blink { 0%,100%{opacity:0.2} 50%{opacity:1} }
+.dot-loader span { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: var(--accent); margin: 0 2px; animation: blink 1.2s infinite; }
+.dot-loader span:nth-child(2) { animation-delay: 0.2s; }
+.dot-loader span:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes fadeIn { from{opacity:0;transform:translateY(4px)} to{opacity:1;transform:translateY(0)} }
+.page { animation: fadeIn 0.15s ease; }
+@keyframes popIn { 0%{transform:scale(1)} 40%{transform:scale(0.88)} 70%{transform:scale(1.1)} 100%{transform:scale(1)} }
+.apo-done-btn { transition: all 0.15s; }
+.apo-done-btn.is-done { background:var(--green-bg)!important; color:var(--green)!important; border-color:var(--green)!important; animation: popIn 0.35s ease; pointer-events:none; }
+.apo-visit-badge { display:inline-flex;align-items:center;gap:4px;background:var(--green-bg);color:var(--green);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500; }
+.trash-banner { background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius-sm);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-size:13px; }
+.summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:12px; }
+.summary-block { background:var(--bg); border-radius:var(--radius-sm); padding:12px 14px; }
+.summary-block-title { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:7px; display:flex; align-items:center; gap:5px; }
+.summary-block-body { font-size:13px; line-height:1.7; color:var(--text); }
+.summary-block-body ul { padding-left:16px; margin:0; }
+.summary-block-body li { margin-bottom:3px; }
+.summary-tag { display:inline-flex; align-items:center; background:var(--card); border:1px solid var(--border); border-radius:99px; padding:2px 9px; font-size:11px; margin:2px 3px 2px 0; color:var(--text2); }
+@keyframes popIn { 0%{transform:scale(1)} 40%{transform:scale(0.88)} 70%{transform:scale(1.1)} 100%{transform:scale(1)} }
+.apo-done-btn { transition: all 0.15s; }
+.apo-done-btn.is-done { background:var(--green-bg)!important; color:var(--green)!important; border-color:var(--green)!important; animation: popIn 0.35s ease; pointer-events:none; }
+.apo-visit-badge { display:inline-flex;align-items:center;gap:4px;background:var(--green-bg);color:var(--green);border-radius:6px;padding:3px 8px;font-size:11px;font-weight:500; }
+.trash-banner { background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius-sm);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;font-size:13px; }
+.summary-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:4px; }
+.summary-block { background:var(--bg); border-radius:var(--radius-sm); padding:12px 14px; }
+.summary-block-title { font-size:10px; font-weight:700; color:var(--text3); text-transform:uppercase; letter-spacing:0.07em; margin-bottom:7px; }
+.summary-block-body { font-size:13px; line-height:1.75; color:var(--text); }
+.summary-block-body ul { padding-left:16px; margin:0; }
+.summary-block-body li { margin-bottom:3px; }
+.summary-tag { display:inline-flex; align-items:center; background:var(--card); border:1px solid var(--border); border-radius:99px; padding:2px 9px; font-size:11px; margin:2px 3px 2px 0; color:var(--text2); }
+</style>
+</head>
+<body>
+
+<aside id="sidebar">
+  <div class="sidebar-logo">
+    <h1>🏢 TileCRM</h1>
+    <p>タイル営業管理システム</p>
+  </div>
+  <div id="apikey-status" style="padding:8px 14px;border-bottom:1px solid var(--border);font-size:11px;cursor:pointer" onclick="openApiKeySetting()"></div>
+  <nav class="sidebar-nav">
+    <div class="nav-section">メニュー</div>
+    <div class="nav-item active" onclick="navigate('dash')" id="nav-dash">
+      <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      ダッシュボード
+    </div>
+    <div class="nav-item" onclick="navigate('customers')" id="nav-customers">
+      <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+      顧客管理
+    </div>
+    <div class="nav-item" onclick="navigate('visits')" id="nav-visits">
+      <svg viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+      訪問履歴
+    </div>
+    <div class="nav-item" onclick="navigate('todos')" id="nav-todos">
+      <svg viewBox="0 0 24 24"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11"/></svg>
+      ToDo
+    </div>
+    <div class="nav-section" style="margin-top:8px">営業ツール</div>
+    <div class="nav-item" onclick="navigate('apo')" id="nav-apo">
+      <svg viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      新規アポリスト
+    </div>
+  </nav>
+</aside>
+
+<main id="main"></main>
+
+<div id="modal-overlay" class="modal-overlay" onclick="closeModalOutside(event)">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+(function(){
+  if(location.protocol==="file:"){
+    var b=document.createElement("div");
+    b.id="file-warn-banner";
+    b.style.cssText="position:fixed;top:0;left:0;right:0;z-index:9999;background:#B86A00;color:#fff;padding:10px 20px;font-size:13px;display:flex;align-items:center;justify-content:space-between;gap:16px;font-family:sans-serif";
+    b.innerHTML="<span>⚠️ <strong>AI機能を使うには http://localhost で開いてください</strong></span><button onclick=\"document.getElementById('file-warn-banner').remove()\" style=\"background:rgba(0,0,0,0.2);border:none;color:#fff;padding:4px 10px;border-radius:4px;cursor:pointer\">&#x2715;</button>";
+    document.body.prepend(b);
+    document.getElementById("sidebar").style.marginTop="44px";
+    document.getElementById("main").style.marginTop="44px";
+  }
+})();
+
+// ===== SUPABASE設定 =====
+const SUPABASE_URL = "https://dfkplbwymlocuyocffsx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRma3BsYnd5bWxvY3V5b2NmZnN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDA3MDgsImV4cCI6MjA5NDI3NjcwOH0.I2KNMCt76i5BVgQyykJrheNIPz8aoAIhHiiBExxfNTg";
+
+async function sbFetch(table, method="GET", body=null, query="") {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+    method,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": method==="POST" ? "return=representation" : method==="PATCH"||method==="PUT" ? "return=representation" : ""
+    },
+    body: body ? JSON.stringify(body) : null
+  });
+  if(!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.message||res.status); }
+  if(res.status===204) return [];
+  return res.json();
+}
+
+// ローカルキャッシュ（高速表示用）
+const CACHE = {};
+
+const DB = {
+  // Supabase経由でデータ取得（キャッシュ付き）
+  async getAsync(table) {
+    try {
+      const data = await sbFetch(table, "GET", null, "?order=created_at.asc");
+      CACHE[table] = data;
+      return data;
+    } catch(e) {
+      console.warn("Supabase fetch failed, using cache:", e.message);
+      return CACHE[table] || [];
+    }
+  },
+  // 同期版（キャッシュから）
+  get(k) {
+    return CACHE[k] || [];
+  },
+  // ローカルのRaw（APIキーなど端末固有データ用）
+  getRaw(k) { return localStorage.getItem('tilecrm_'+k)||''; },
+  setRaw(k,v) { localStorage.setItem('tilecrm_'+k, v); },
+  id() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); },
+
+  // Supabase書き込み
+  async insert(table, row) {
+    const data = await sbFetch(table, "POST", row);
+    if(!CACHE[table]) CACHE[table]=[];
+    CACHE[table].push(Array.isArray(data)?data[0]:data);
+    return data;
+  },
+  async update(table, id, changes) {
+    await sbFetch(table, "PATCH", changes, `?id=eq.${id}`);
+    if(CACHE[table]) {
+      const i = CACHE[table].findIndex(r=>r.id===id);
+      if(i!==-1) CACHE[table][i] = {...CACHE[table][i], ...changes};
+    }
+  },
+  async remove(table, id) {
+    await sbFetch(table, "DELETE", null, `?id=eq.${id}`);
+    if(CACHE[table]) CACHE[table] = CACHE[table].filter(r=>r.id!==id);
+  },
+  async upsert(table, row) {
+    const data = await sbFetch(table, "POST", row, "");
+    if(!CACHE[table]) CACHE[table]=[];
+    const i = CACHE[table].findIndex(r=>r.id===row.id);
+    const rec = Array.isArray(data)?data[0]:data;
+    if(i!==-1) CACHE[table][i]=rec; else CACHE[table].push(rec);
+    return rec;
+  },
+  // 後方互換: set()は非同期upsertに委譲（古いコードとの互換用）
+  set(k, arr) {
+    // 旧localStorage形式との互換 - Supabase版では使わない
+    CACHE[k] = arr;
+  }
+};
+
+// 起動時に全テーブルをプリロード
+async function initDB() {
+  showLoading(true);
+  try {
+    await Promise.all([
+      DB.getAsync('customers'),
+      DB.getAsync('visits'),
+      DB.getAsync('todos'),
+      DB.getAsync('apos'),
+      DB.getAsync('apo_trash'),
+    ]);
+  } catch(e) {
+    console.error("DB init failed:", e);
+  }
+  showLoading(false);
+}
+
+function showLoading(show) {
+  let el = document.getElementById('db-loading');
+  if(show && !el) {
+    el = document.createElement('div');
+    el.id = 'db-loading';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--accent);color:#fff;padding:8px 20px;font-size:13px;text-align:center';
+    el.textContent = '⏳ データを読み込み中...';
+    document.body.prepend(el);
+  } else if(!show && el) {
+    el.remove();
+  }
+}
+
+// APIキー管理
+function getApiKey(){ return DB.getRaw('apikey'); }
+function setApiKey(k){ DB.setRaw('apikey', k); updateApiKeyStatus(); }
+function updateApiKeyStatus(){
+  const el=document.getElementById('apikey-status');
+  if(!el)return;
+  const k=getApiKey();
+  if(k){ el.innerHTML='<span style="color:var(--green)">✓ AI機能 有効</span> <span style="color:var(--text3);margin-left:4px">設定変更</span>'; }
+  else { el.innerHTML='<span style="color:var(--amber)">⚠️ APIキー未設定</span><span style="color:var(--text3);margin-left:4px">→ クリックで設定</span>'; }
+}
+function openApiKeySetting(){
+  const cur=getApiKey();
+  openModal(`
+    <div class="modal-header">
+      <div class="modal-title">🔑 Anthropic APIキー設定</div>
+      <div class="modal-close" onclick="closeModal()">×</div>
+    </div>
+    <div class="modal-body">
+      <div style="background:var(--accent-bg);border-radius:var(--radius-sm);padding:12px 14px;margin-bottom:16px;font-size:13px;line-height:1.7">
+        <strong>AIで読み取る機能を使うにはAPIキーが必要です。</strong><br>
+        取得方法: <a href="https://console.anthropic.com/" target="_blank">console.anthropic.com</a> にアクセス →「API Keys」→「Create Key」<br>
+        <span style="color:var(--text3);font-size:11px">※ キーはこのPCのブラウザにのみ保存されます。外部に送信されることはありません。</span>
+      </div>
+      <div class="form-group">
+        <label class="form-label">APIキー（sk-ant-...）</label>
+        <input class="form-control" id="modal-apikey" type="password" placeholder="sk-ant-api03-..." value="${cur}" style="font-family:'DM Mono',monospace;font-size:12px">
+      </div>
+      ${cur?'<div style="margin-top:8px"><button style="font-size:12px;color:var(--red);padding:4px 0;cursor:pointer" onclick="setApiKey(\'\');closeModal()">APIキーを削除する</button></div>':''}
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveApiKey()">保存する</button>
+    </div>
+  `);
+}
+function saveApiKey(){
+  const v=document.getElementById('modal-apikey')?.value?.trim();
+  if(!v){alert('APIキーを入力してください');return;}
+  if(!v.startsWith('sk-')){alert('APIキーは「sk-」から始まる文字列です。確認してください。');return;}
+  setApiKey(v);
+  closeModal();
+}
+
+// APIリクエスト共通関数
+async function callClaudeAPI(messages, maxTokens=500){
+  const key=getApiKey();
+  if(!key) throw new Error('NO_API_KEY');
+  const reqBody={
+    model:'claude-haiku-4-5',
+    max_tokens:maxTokens,
+    messages
+  };
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',
+    headers:{
+      'Content-Type':'application/json',
+      'x-api-key': key,
+      'anthropic-version':'2023-06-01',
+      'anthropic-dangerous-direct-browser-access':'true'
+    },
+    body:JSON.stringify(reqBody)
+  });
+  if(!res.ok){
+    let errBody={};
+    try{ errBody=await res.json(); }catch(_){}
+    const errMsg=errBody?.error?.message||res.statusText||res.status;
+    const errType=errBody?.error?.type||'';
+    console.error('[API Error]', res.status, errType, errMsg, errBody);
+    throw new Error('API_ERROR ['+res.status+' '+errType+']: '+errMsg);
+  }
+  return res.json();
+}
+
+
+
+let currentPage='dash';
+const svgPlus=`<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
+const svgBack=`<svg viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6"/></svg>`;
+// ランク定義
+const RANKS = {
+  S: { label:'S お得意様', badge:'badge-rank-s', freq:'標準仕様先', color:'#7A5000', icon:'👑' },
+  A: { label:'優先A',       badge:'badge-rank-a', freq:'月2〜4回',  color:'#9B2618', icon:'🔥' },
+  B: { label:'優先B',       badge:'badge-rank-b', freq:'月1回',     color:'#8B4F00', icon:'📋' },
+  C: { label:'優先C',       badge:'badge-rank-c', freq:'年1回程度', color:'#5A5755', icon:'🔵' },
+};
+const rankBadge = r => RANKS[r]?.badge || 'badge-gray';
+const rankLabel = r => RANKS[r]?.label || r || '未設定';
+const rankIcon  = r => RANKS[r]?.icon || '';
+const rankFreq  = r => RANKS[r]?.freq || '';
+// 商談フェーズ（ランクとは別）
+const PHASES = ['未接触','提案中','見積提出','取引中','受注','失注'];
+const phaseBadge = p => p==='受注'?'badge-green':p==='失注'?'badge-gray':p==='取引中'?'badge-purple':p==='見積提出'?'badge-blue':p==='提案中'?'badge-amber':'badge-gray';
+const today=()=>new Date().toISOString().split('T')[0];
+const fmtDate=d=>{const dt=new Date(d);return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;};
+
+async function navigate(page,params={}) {
+  currentPage=page;
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  const map={dash:'nav-dash',customers:'nav-customers',visits:'nav-visits',todos:'nav-todos',apo:'nav-apo'};
+  const top=page.split('/')[0];
+  if(map[top])document.getElementById(map[top])?.classList.add('active');
+  // トップレベルページはキャッシュをリフレッシュ
+  const refreshPages=['dash','customers','visits','todos','apo'];
+  if(refreshPages.includes(top)){
+    await Promise.all([
+      DB.getAsync('customers'),DB.getAsync('visits'),DB.getAsync('todos'),DB.getAsync('apos'),DB.getAsync('apo_trash')
+    ]).catch(()=>{});
+  }
+  const main=document.getElementById('main');
+  main.innerHTML='';
+  const div=document.createElement('div');
+  div.className='page';
+  main.appendChild(div);
+  ({dash:renderDash,customers:renderCustomers,'customer/detail':renderCustomerDetail,'customer/new':()=>renderCustomerForm(div,null),'customer/edit':(el,p)=>renderCustomerForm(el,p.id),apo:renderApo,'apo/new':renderApoNew,visits:renderVisits,'visit/new':renderVisitNew,todos:renderTodos})[page]?.(div,params);
+  main.scrollTo(0,0);
+}
+
+function renderDash(el) {
+  const customers=DB.get('customers'), todos=DB.get('todos'), visits=DB.get('visits');
+  const td=today();
+  const todayTodos=todos.filter(t=>!t.done&&t.due<=td);
+  const upcoming=visits.filter(v=>v.next_visit>=td).sort((a,b)=>a.next_visit>b.next_visit?1:-1);
+  const overdue=todos.filter(t=>!t.done&&t.due<td);
+  const RANK_ORDER={S:0,A:1,B:2,C:3}; const priority=customers.filter(c=>c.rank==='S'||c.rank==='A').sort((a,b)=>(RANK_ORDER[a.rank]??9)-(RANK_ORDER[b.rank]??9));
+  el.innerHTML=`
+    <div class="page-header"><div><h2>ダッシュボード</h2><p>${fmtDate(td)} · タイル営業</p></div></div>
+    <div class="grid-4" style="margin-bottom:24px">
+      <div class="stat-card"><div class="num" style="color:var(--red)">${todayTodos.length}</div><div class="label">今日のタスク</div><div class="sub">期限日が今日以前</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--accent)">${upcoming.length}</div><div class="label">次回訪問予定</div><div class="sub">今後の訪問件数</div></div>
+      <div class="stat-card"><div class="num" style="color:var(--amber)">${overdue.length}</div><div class="label">フォロー漏れ</div><div class="sub">期限切れタスク</div></div>
+      <div class="stat-card"><div class="num">${customers.length}</div><div class="label">顧客数</div><div class="sub">登録済み顧客</div></div>
+    </div>
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card">
+        <div class="card-header"><h3>今日やること</h3><button class="btn btn-secondary btn-sm" onclick="openTodoModal(null)">${svgPlus} 追加</button></div>
+        <div class="card-body">
+          ${todayTodos.length===0?`<div class="empty"><div class="icon">✅</div><p>今日のタスクはありません</p></div>`:
+          `<table class="table"><thead><tr><th></th><th>タスク</th><th>顧客</th><th>優先度</th></tr></thead><tbody>
+          ${todayTodos.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;return`<tr class="${t.done?'done':''}" onclick="toggleTodo('${t.id}')"><td><div class="todo-check ${t.done?'done':''}"></div></td><td>${t.title}</td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td></tr>`;}).join('')}
+          </tbody></table>`}
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><h3>次回訪問予定</h3><button class="btn btn-secondary btn-sm" onclick="navigate('visits')">すべて</button></div>
+        <div class="card-body">
+          ${upcoming.length===0?`<div class="empty"><div class="icon">📅</div><p>予定はありません</p></div>`:
+          `<table class="table"><thead><tr><th>顧客</th><th>次回アクション</th><th>訪問予定日</th></tr></thead><tbody>
+          ${upcoming.slice(0,5).map(v=>{const c=customers.find(c=>c.id===v.customer_id);if(!c)return'';return`<tr onclick="navigate('customer/detail',{id:'${c.id}'})"><td><strong>${c.company}</strong></td><td class="text-muted text-sm">${v.next_action||'—'}</td><td><span class="badge badge-green mono">${v.next_visit}</span></td></tr>`;}).join('')}
+          </tbody></table>`}
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      ${overdue.length>0?`<div class="card"><div class="card-header"><h3>⚠️ フォロー漏れ</h3></div><div class="card-body"><table class="table"><thead><tr><th></th><th>タスク</th><th>顧客</th><th>期限</th></tr></thead><tbody>${overdue.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;return`<tr onclick="toggleTodo('${t.id}')"><td><div class="todo-check"></div></td><td>${t.title}</td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td><span class="badge badge-red mono">${t.due}</span></td></tr>`;}).join('')}</tbody></table></div></div>`:'<div></div>'}
+      <div class="card">
+        <div class="card-header"><h3>優先顧客</h3><button class="btn btn-secondary btn-sm" onclick="navigate('customers')">すべて表示</button></div>
+        <div class="card-body">
+          <table class="table"><thead><tr><th>会社名</th><th>担当者</th><th>最終訪問</th><th>巡回頻度</th><th>ランク</th><th>フェーズ</th></tr></thead><tbody>
+          ${priority.map(c=>{const last=DB.get('visits').filter(v=>v.customer_id===c.id).sort((a,b)=>b.visited_at>a.visited_at?1:-1)[0];return`<tr onclick="navigate('customer/detail',{id:'${c.id}'})"><td><strong>${c.company}</strong></td><td class="text-muted">${c.contact}</td><td class="mono text-sm">${last?last.visited_at:'未訪問'}</td><td class="text-sm text-muted">${rankFreq(c.rank)}</td><td><span class="badge ${rankBadge(c.rank)}">${rankIcon(c.rank)} ${c.rank||'—'}</span></td><td><span class="badge ${phaseBadge(c.phase||'未接触')}">${c.phase||'未接触'}</span></td></tr>`;}).join('')}
+          </tbody></table>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderCustomers(el) {
+  const customers=DB.get('customers');
+  let filter='all',q='';
+  function render(){
+    const f=customers.filter(c=>(filter==='all'||c.rank===filter)&&(c.company.includes(q)||c.contact.includes(q)||c.industry.includes(q)));
+    el.innerHTML=`
+      <div class="page-header"><div><h2>顧客管理</h2><p>${customers.length}社登録</p></div><button class="btn btn-primary" onclick="navigate('customer/new')">${svgPlus} 新規顧客登録</button></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+        <div class="search-wrap" style="flex:1;max-width:280px"><div class="search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><input class="form-control" id="cs-s" placeholder="会社名・担当者で検索" oninput="csQ(this.value)" value="${q}"></div>
+        <div class="tab-bar">${['all','S','A','B','C'].map(s=>`<div class="tab ${filter===s?'active':''}" onclick="csF('${s}')">${s==='all'?'すべて':s==='S'?'👑 S':s==='A'?'🔥 A':s==='B'?'📋 B':'🔵 C'}</div>`).join('')}</div>
+      </div>
+      <div class="card"><table class="table">
+        <thead><tr><th>会社名</th><th>業種</th><th>担当者</th><th>電話</th><th>訪問回数</th><th>ランク</th><th>商談フェーズ</th></tr></thead>
+        <tbody>${f.length===0?`<tr><td colspan="7" style="text-align:center;padding:40px;color:var(--text3)">該当する顧客がいません</td></tr>`:f.map(c=>{const vCount=DB.get('visits').filter(v=>v.customer_id===c.id).length;return`<tr onclick="navigate('customer/detail',{id:'${c.id}'})"><td><strong>${c.company}</strong></td><td class="text-muted">${c.industry}</td><td>${c.contact}</td><td class="mono text-sm">${c.phone||'—'}</td><td><span class="badge badge-gray">${vCount}回</span></td><td><span class="badge ${rankBadge(c.rank)} ">${rankIcon(c.rank)} ${rankLabel(c.rank)}</span></td><td><span class="badge ${phaseBadge(c.phase)}">${c.phase||'未接触'}</span></td></tr>`;}).join('')}</tbody>
+      </table></div>`;
+  }
+  window.csF=s=>{filter=s;render();};
+  window.csQ=v=>{q=v;render();};
+  render();
+}
+
+function renderCustomerDetail(el,{id}) {
+  const c=DB.get('customers').find(c=>c.id===id); if(!c)return;
+  const visits=DB.get('visits').filter(v=>v.customer_id===id).sort((a,b)=>b.visited_at>a.visited_at?1:-1);
+  const todos=DB.get('todos').filter(t=>t.customer_id===id);
+  el.innerHTML=`
+    <div class="detail-back" onclick="navigate('customers')">${svgBack} 顧客一覧に戻る</div>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px">
+      <div>
+        <h2 style="font-size:24px;font-weight:700;letter-spacing:-0.5px">${c.company}</h2>
+        <p style="color:var(--text2);margin-top:4px">${c.industry} · 担当: ${c.contact}</p>
+        <div style="display:flex;gap:8px;margin-top:10px;align-items:center"><span class="badge ${rankBadge(c.rank)}">${rankIcon(c.rank)} ${rankLabel(c.rank)}</span><span class="badge ${phaseBadge(c.phase||'未接触')}" style="margin-left:4px">${c.phase||'未接触'}</span><span class="badge badge-gray" style="margin-left:4px">${rankFreq(c.rank)}</span></div>
+      </div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" onclick="navigate('visit/new',{customer_id:'${c.id}'})">${svgPlus} 訪問を記録</button>
+        <button class="btn btn-secondary" onclick="openTodoModal('${c.id}')">${svgPlus} ToDo追加</button>
+        <button class="btn btn-primary" onclick="navigate('customer/edit',{id:'${c.id}'})">編集</button>
+      </div>
+    </div>
+    <div class="grid-2" style="margin-bottom:20px">
+      <div class="card"><div class="card-header"><h3>基本情報</h3></div><div class="card-body" style="padding:16px">
+        <table class="info-table">
+          <tr><td>担当者</td><td>${c.contact?(c.contact+(c.contact_title?' <span class="badge badge-gray">'+c.contact_title+'</span>':'')):'—'}</td></tr>
+          <tr><td>電話番号</td><td>${c.phone?`<a href="tel:${c.phone}">${c.phone}</a>`:'—'}${c.mobile?' / <a href="tel:'+c.mobile+'">'+c.mobile+'</a> <span class="badge badge-gray" style="font-size:10px">携帯</span>':''}</td></tr>
+          <tr><td>メール</td><td>${c.email?`<a href="mailto:${c.email}">${c.email}</a>`:'—'}</td></tr>
+          <tr><td>ホームページ</td><td>${c.website?`<a href="${c.website}" target="_blank">${c.website}</a>`:'—'}</td></tr>
+          <tr><td>住所</td><td>${c.address||'—'}</td></tr>
+          <tr><td>業種</td><td>${c.industry}</td></tr>
+          <tr><td>商談フェーズ</td><td><span class="badge ${phaseBadge(c.phase||'未接触')}">${c.phase||'未接触'}</span></td></tr>
+          ${c.memo?'<tr><td>メモ</td><td style="color:var(--text2)">'+c.memo+'</td></tr>':''}
+          <tr><td>訪問回数</td><td>${visits.length}回</td></tr>
+        </table>
+      </div></div>
+      <div class="card">
+        <div class="card-header">
+          <h3>AI調査シート</h3>
+          <div style="display:flex;gap:6px;align-items:center">
+            <button class="btn btn-secondary btn-sm" id="summary-toggle-btn" onclick="toggleAiSheet()">原文を見る</button>
+            <button class="btn btn-secondary btn-sm" onclick="generateSummary('${c.id}')">
+              <svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg>
+              サマリー再生成
+            </button>
+          </div>
+        </div>
+        <div class="card-body" style="padding:16px">
+          <!-- サマリービュー（デフォルト） -->
+          <div id="summary-view">
+            ${c.ai_sheet
+              ? '<div id="summary-content">' + (c.ai_summary ? window._renderSummaryStatic(c.ai_summary) : '<div style="padding:8px 0"><span style=\"color:var(--text3);font-size:13px\">「サマリー再生成」ボタンを押すと生成されます。<br><span style=\"font-size:11px\">※ ボタンを押したときのみAPIを使用します</span></span></div>') + '</div>'
+              : '<p style="font-size:13px;color:var(--text3)">AI調査シートを登録すると、ここに営業サマリーが自動生成されます。</p>'
+            }
+          </div>
+          <!-- 原文ビュー（トグル） -->
+          <div id="rawsheet-view" style="display:none">
+            <p style="font-size:12px;color:var(--text2);line-height:1.75;white-space:pre-wrap;max-height:300px;overflow-y:auto">${c.ai_sheet||'未入力'}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h3 style="font-size:13px;font-weight:700">訪問履歴</h3><button class="btn btn-secondary btn-sm" onclick="navigate('visit/new',{customer_id:'${c.id}'})">${svgPlus} 記録</button></div>
+        <div class="timeline">
+          ${visits.length===0?`<div class="empty"><div class="icon">📋</div><p>訪問履歴がありません</p></div>`:visits.map(v=>`<div class="tl-item"><div class="tl-dot">📋</div><div class="tl-body"><div class="tl-date">${v.visited_at}</div><div class="tl-text">${v.content}</div>${v.next_action?`<div class="tl-action">→ ${v.next_action}</div>`:''}${v.next_visit?`<div class="tl-next">📅 次回訪問: ${v.next_visit}</div>`:''}</div></div>`).join('')}
+        </div>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h3 style="font-size:13px;font-weight:700">ToDo</h3><button class="btn btn-secondary btn-sm" onclick="openTodoModal('${c.id}')">${svgPlus} 追加</button></div>
+        ${todos.length===0?`<div class="empty"><div class="icon">✅</div><p>ToDoがありません</p></div>`:`<div class="card"><table class="table"><thead><tr><th></th><th>タスク</th><th>期限</th><th>優先度</th></tr></thead><tbody>${todos.map(t=>`<tr class="${t.done?'done':''}" onclick="toggleTodo('${t.id}')"><td><div class="todo-check ${t.done?'done':''}"></div></td><td>${t.title}</td><td class="mono text-sm">${t.due||'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td></tr>`).join('')}</tbody></table></div>`}
+        ${visits.length>0?`<div class="ai-panel" style="margin-top:16px">
+          <div class="ai-panel-header">
+            <span class="ai-badge">AI</span>
+            <span style="font-size:13px;font-weight:600">次回提案アドバイス</span>
+            <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
+              ${c.ai_advice_date ? '<span style="font-size:11px;color:var(--text3)">生成済み: '+c.ai_advice_date+'</span>' : ''}
+              <button class="btn btn-secondary btn-sm" id="advice-gen-btn" onclick="generateAI('${c.id}')">
+                ${c.ai_advice ? '🔄 再生成（API使用）' : '✨ アドバイスを生成（API使用）'}
+              </button>
+            </div>
+          </div>
+          <div id="ai-text" class="ai-text">
+            ${c.ai_advice
+              ? c.ai_advice.split("\n").join("<br>")
+              : '<span style="color:var(--text3);font-size:13px">訪問履歴登録後に「アドバイスを生成」ボタンを押してください。<br><span style="font-size:11px">※ ボタンを押したときのみAPIを使用します</span></span>'}
+          </div>
+        </div>`:''}
+      </div>
+    </div>`;
+  // サマリー・アドバイスともに自動生成しない（手動ボタンのみ）
+
+  window._renderSummaryStatic = window.renderSummaryHTML = function(summary) {
+    if(!summary || typeof summary !== 'object') return '<p style="color:var(--text3);font-size:13px">サマリーを生成中...</p>';
+    return `<div class="summary-grid">
+      <div class="summary-block" style="background:var(--accent-bg)">
+        <div class="summary-block-title">🏢 会社概要</div>
+        <div class="summary-block-body">${summary.overview||'—'}</div>
+      </div>
+      <div class="summary-block" style="background:var(--amber-bg)">
+        <div class="summary-block-title">🔨 対応案件・事業内容</div>
+        <div class="summary-block-body">${summary.projects||'—'}</div>
+      </div>
+      <div class="summary-block" style="background:var(--green-bg)">
+        <div class="summary-block-title">🏷️ 提案できるタイル</div>
+        <div class="summary-block-body">
+          ${summary.tile_proposals ? summary.tile_proposals.map(t=>`<span class="summary-tag">✦ ${t}</span>`).join('') : '—'}
+        </div>
+      </div>
+      <div class="summary-block" style="background:var(--purple-bg)">
+        <div class="summary-block-title">💡 今後の提案アクション</div>
+        <div class="summary-block-body">
+          <ul>${summary.next_actions ? summary.next_actions.map(a=>`<li>${a}</li>`).join('') : '<li>—</li>'}</ul>
+        </div>
+      </div>
+    </div>
+    ${summary.key_point?`<div style="margin-top:10px;padding:10px 12px;background:var(--card);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12px;color:var(--text2)">💬 <strong>ポイント：</strong>${summary.key_point}</div>`:''}`;
+  };
+
+  window.toggleAiSheet = function() {
+    const sv = document.getElementById('summary-view');
+    const rv = document.getElementById('rawsheet-view');
+    const btn = document.getElementById('summary-toggle-btn');
+    if(!sv||!rv||!btn) return;
+    const isRaw = rv.style.display !== 'none';
+    sv.style.display = isRaw ? 'block' : 'none';
+    rv.style.display = isRaw ? 'none' : 'block';
+    btn.textContent = isRaw ? '原文を見る' : 'サマリーを見る';
+  };
+
+  window.generateSummary = async function(cid) {
+    const cust = DB.get('customers').find(c=>c.id===cid);
+    if(!cust||!cust.ai_sheet) return;
+    const summaryEl = document.getElementById('summary-content');
+    if(summaryEl) summaryEl.innerHTML = '<div class="dot-loader" style="padding:12px 0"><span></span><span></span><span></span></div>';
+    const prompt = `あなたはタイル建材の営業アシスタントです。以下のAI調査シートを読んで、営業担当者向けに以下の形式のJSONのみ返してください。説明文不要。
+
+フィールド:
+- overview: 会社の概要（2〜3文、どんな会社か）
+- projects: 主な対応案件・事業内容（2〜3文）
+- tile_proposals: 提案できるタイルの種類（配列、3〜5個、具体的に。例:「外壁大判タイル」「バスルーム石材調」など）
+- next_actions: 今後必要な提案アクション（配列、3〜4個、具体的に。例:「外壁リノベ向けサンプル持参」など）
+- key_point: この顧客への営業で最も重要な1点（1文）
+
+調査シート:
+${cust.ai_sheet.slice(0,4000)}`;
+    try {
+      const data = await callClaudeAPI([{role:'user',content:prompt}], 800);
+      const raw = data.content?.find(b=>b.type==='text')?.text||'';
+      const m = raw.match(/\{[\s\S]*\}/);
+      if(!m) throw new Error('JSON not found');
+      const summary = JSON.parse(m[0]);
+      // Supabaseに保存
+      try{ await DB.update('customers',cid,{ai_summary:summary}); }catch(e){ console.warn('summary save failed:',e); }
+      if(summaryEl) summaryEl.innerHTML = window.renderSummaryHTML(summary);
+    } catch(e) {
+      if(summaryEl){
+        if(e.message==='NO_API_KEY'){
+          summaryEl.innerHTML='<span style="color:var(--amber);font-size:13px">⚠️ APIキー未設定。<button class=\"btn btn-secondary btn-sm\" onclick=\"openApiKeySetting()\">設定する</button></span>';
+        } else {
+          summaryEl.innerHTML='<span style="color:var(--text3);font-size:13px">サマリー生成に失敗しました。「サマリー再生成」ボタンをお試しください。</span>';
+        }
+      }
+      console.error('[Summary]', e.message);
+    }
+  };
+
+  window.generateAI=async function(cid){
+    const cust=DB.get('customers').find(c=>c.id===cid);
+    const vs=DB.get('visits').filter(v=>v.customer_id===cid).sort((a,b)=>b.visited_at>a.visited_at?1:-1).slice(0,5);
+    const aiEl=document.getElementById('ai-text');
+    const genBtn=document.getElementById('advice-gen-btn');
+    if(!aiEl)return;
+    aiEl.innerHTML='<div class="dot-loader"><span></span><span></span><span></span></div>';
+    if(genBtn){genBtn.disabled=true;genBtn.textContent='生成中...';}
+    const vsText=vs.map(function(v){return "- "+v.visited_at+": "+v.content+(v.next_action?" / 次のアクション: "+v.next_action:"");}).join("\n");
+    const prompt="あなたはタイル建材の営業アシスタントです。\n顧客: "+cust.company+"（"+cust.industry+"）\n担当: "+cust.contact+"\n直近の訪問内容:\n"+vsText+"\n\nこの顧客への次回訪問で使える具体的な提案・アドバイスを3点、簡潔に日本語で教えてください。各項目を「・」で始めてください。";
+    try{
+      const data=await callClaudeAPI([{role:'user',content:prompt}],500);
+      const text=data.content?.find(b=>b.type==='text')?.text||'AIの応答を取得できませんでした。';
+      // Supabaseに保存（次回開いたとき自動で表示される）
+      try{
+        await DB.update('customers',cid,{ai_advice:text,ai_advice_date:new Date().toLocaleDateString('ja-JP')});
+      }catch(e){ console.warn('advice save failed:',e); }
+      if(aiEl)aiEl.innerHTML=text.split("\n").join("<br>");
+      if(genBtn){genBtn.disabled=false;genBtn.innerHTML='<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg> 再生成';}
+    }catch(e){
+      if(e.message==='NO_API_KEY'){
+        if(aiEl)aiEl.innerHTML='<span style="color:var(--amber)">⚠️ APIキーが設定されていません。<button class=\"btn btn-secondary btn-sm\" style=\"margin-left:8px\" onclick=\"openApiKeySetting()\">設定する</button></span>';
+      } else {
+        if(aiEl)aiEl.innerHTML='<span style="color:var(--red);font-size:13px">生成に失敗しました: '+e.message+'</span>';
+      }
+      if(genBtn){genBtn.disabled=false;genBtn.innerHTML='<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg> アドバイスを生成';}
+    }
+  };
+}
+
+function renderCustomerForm(el,editId){
+  const existing=editId?DB.get('customers').find(c=>c.id===editId):null;
+  const v=existing||{company:'',industry:'建設業',contact:'',contact_title:'',phone:'',mobile:'',email:'',website:'',address:'',ai_sheet:'',priority:3,status:'見込み',memo:''};
+
+  const industryOpts=['建設業','住宅・不動産','ホテル・宿泊','設計事務所','デザイナー事務所','工務店','ゼネコン','その他'];
+  const titleOpts=['','代表取締役','社長','副社長','専務','常務','取締役','部長','課長','係長','主任','担当者','その他'];
+
+  el.innerHTML=`
+    <div class="detail-back" onclick="navigate(${editId?`'customer/detail',{id:'${editId}'}`:'\'customers\''})">${svgBack} ${editId?'顧客詳細':'顧客一覧'}に戻る</div>
+    <div class="page-header" style="margin-bottom:24px">
+      <div><h2>${editId?'顧客情報を編集':'新規顧客を登録'}</h2></div>
+      ${editId?`<button class="btn btn-secondary" style="color:var(--red)" onclick="deleteCustomer('${editId}')">削除する</button>`:''}
+    </div>
+    <div style="max-width:760px">
+
+      ${!editId ? `
+      <!-- AI読み取りパネル（新規登録のみ） -->
+      <div id="ai-import-panel" class="card" style="margin-bottom:20px;overflow:hidden">
+        <div style="padding:16px 20px;background:linear-gradient(135deg,#EDF1FD,#F3EDFB);border-bottom:1px solid #C8D4F9;display:flex;align-items:center;gap:10px">
+          <span class="ai-badge">AI</span>
+          <span style="font-size:14px;font-weight:600">AIシートから自動入力</span>
+          <span style="font-size:12px;color:var(--text2);margin-left:4px">調査シートを貼り付けるだけで自動で項目を読み取ります</span>
+        </div>
+        <div style="padding:16px 20px">
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">AIシートをここに貼り付け</label>
+            <textarea class="form-control" id="ai-import-text" rows="5" placeholder="ChatGPT・Perplexityなどで調査したテキストをそのまま貼り付けてください&#10;&#10;例：&#10;会社名：株式会社田中建設&#10;業種：建設業&#10;代表者：田中 誠（代表取締役）&#10;電話：03-1234-5678&#10;URL：https://tanaka-const.jp&#10;所在地：東京都千代田区...&#10;概要：大手ゼネコン案件を中心に..."></textarea>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary" id="ai-read-btn" onclick="runAiImport()">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg>
+              AIで読み取る
+            </button>
+            <span id="ai-import-status" style="font-size:12px;color:var(--text2)"></span>
+          </div>
+        </div>
+      </div>` : ''}
+
+      <!-- 入力フォーム -->
+      <div class="card" style="padding:24px;margin-bottom:16px">
+        <div class="form-section-title">会社情報</div>
+        <div class="form-row cols-2" style="margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">会社名 <span>*</span></label>
+            <input class="form-control" id="f-company" value="${v.company}" placeholder="例: 株式会社田中建設">
+          </div>
+          <div class="form-group">
+            <label class="form-label">業種</label>
+            <select class="form-control" id="f-industry">${industryOpts.map(s=>`<option ${v.industry===s?'selected':''}>${s}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">電話番号</label>
+            <input class="form-control" id="f-phone" type="tel" value="${v.phone||''}" placeholder="03-xxxx-xxxx">
+          </div>
+          <div class="form-group">
+            <label class="form-label">携帯・直通</label>
+            <input class="form-control" id="f-mobile" type="tel" value="${v.mobile||''}" placeholder="090-xxxx-xxxx">
+          </div>
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">ホームページ</label>
+            <input class="form-control" id="f-website" value="${v.website||''}" placeholder="https://">
+          </div>
+          <div class="form-group">
+            <label class="form-label">メールアドレス</label>
+            <input class="form-control" id="f-email" type="email" value="${v.email||''}" placeholder="info@example.co.jp">
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">住所</label>
+          <input class="form-control" id="f-address" value="${v.address||''}" placeholder="例: 東京都千代田区丸の内1-1-1">
+        </div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:16px">
+        <div class="form-section-title" style="display:flex;align-items:center;justify-content:space-between">
+          <span>担当者情報</span>
+          <span style="font-size:11px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">※ AIで読み取った場合も内容を確認・修正してください</span>
+        </div>
+        <div class="form-row cols-3" style="margin-bottom:0">
+          <div class="form-group">
+            <label class="form-label">担当者名</label>
+            <input class="form-control" id="f-contact" value="${v.contact||''}" placeholder="例: 田中 誠">
+          </div>
+          <div class="form-group">
+            <label class="form-label">役職</label>
+            <select class="form-control" id="f-contact-title">
+              ${titleOpts.map(t=>`<option value="${t}" ${(v.contact_title||'')=== t?'selected':''}>${t||'選択してください'}</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">役職（自由入力）</label>
+            <input class="form-control" id="f-contact-title-custom" value="${!titleOpts.includes(v.contact_title||'')?v.contact_title||'':''}" placeholder="上記にない場合はこちらに入力">
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:16px">
+        <div class="form-section-title">管理情報</div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label class="form-label">顧客ランク <span>*</span></label>
+          <div class="rank-selector" id="rank-selector">
+            ${[['S','👑','お得意様','標準仕様先'],['A','🔥','優先A','月2〜4回'],['B','📋','優先B','月1回'],['C','🔵','優先C','年1回程度']].map(([r,icon,name,freq])=>`
+              <div class="rank-card ${(v.rank||'B')===r?'sel-'+r:''}" id="rcard-${r}" onclick="selectRank('${r}')">
+                <div class="rl" style="color:${r==='S'?'#7A5000':r==='A'?'#9B2618':r==='B'?'#8B4F00':'#5A5755'}">${icon} ${r}</div>
+                <div class="rn">${name}</div>
+                <div class="rf">${freq}</div>
+              </div>`).join('')}
+          </div>
+          <input type="hidden" id="f-rank" value="${v.rank||'B'}">
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:0">
+          <div class="form-group">
+            <label class="form-label">商談フェーズ</label>
+            <select class="form-control" id="f-phase">${['未接触','提案中','見積提出','取引中','受注','失注'].map(s=>`<option ${(v.phase||'未接触')===s?'selected':''}>${s}</option>`).join('')}</select>
+          </div>
+          <div class="form-group">
+            <label class="form-label">優先度（補助）</label>
+            <select class="form-control" id="f-priority">${[5,4,3,2,1].map(n=>`<option value="${n}" ${(v.priority||3)==n?'selected':''}>★${n} ${n===5?'最高':n===4?'高':n===3?'中':n===2?'低':'最低'}</option>`).join('')}</select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label class="form-label">AI調査シート（保存用）</label>
+          <textarea class="form-control" id="f-aisheet" rows="4" placeholder="AIで読み取ったデータや、調査内容の原文を保存できます">${v.ai_sheet||''}</textarea>
+          <div class="form-hint">読み取り後に自動でここに保存されます</div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">メモ・補足</label>
+          <textarea class="form-control" id="f-memo" rows="2" placeholder="特記事項、紹介者など自由にメモできます">${v.memo||''}</textarea>
+        </div>
+      </div>
+
+      <div style="display:flex;align-items:center;gap:12px;padding-bottom:48px">
+        <button class="btn btn-primary" style="padding:11px 28px;font-size:14px" onclick="saveCustomer('${editId||''}')">
+          ${editId?'保存する':'登録する'}
+        </button>
+        <button class="btn btn-secondary" style="padding:11px 20px" onclick="navigate(${editId?`'customer/detail',{id:'${editId}'}`:'\'customers\''})">キャンセル</button>
+      </div>
+    </div>`;
+
+  // AI読み取り
+  window.runAiImport = async function(){
+    const text = document.getElementById('ai-import-text')?.value?.trim();
+    if(!text){alert('AIシートを貼り付けてください');return;}
+    const btn = document.getElementById('ai-read-btn');
+    const status = document.getElementById('ai-import-status');
+    btn.disabled=true; btn.innerHTML='読み取り中...';
+    status.innerHTML='<span style="color:var(--accent)">AIが解析中です...</span>';
+
+    const prompt=`以下のテキストから企業情報を抽出し、必ずJSON形式のみで返してください。マークダウンや説明文は一切不要です。
+抽出するフィールド: company（会社名）, industry（業種: 建設業/住宅・不動産/ホテル・宿泊/設計事務所/工務店/ゼネコン/その他 から最も近いもの）, contact（担当者名・代表者名）, contact_title（役職: 代表取締役/社長/副社長/専務/常務/取締役/部長/課長/係長/主任/担当者/その他 から最も近いもの）, phone（代表電話番号）, mobile（携帯・直通番号）, email（メールアドレス）, website（URL）, address（住所）
+見つからない項目は空文字にしてください。JSONのキーは英語、値は日本語。
+
+テキスト:
+${text.slice(0,3000)}`;
+
+    try{
+      const data=await callClaudeAPI([{role:'user',content:prompt}],600);
+      const raw=data.content?.find(b=>b.type==='text')?.text||'';
+      const jsonMatch=raw.match(/\{[\s\S]*\}/);
+      if(!jsonMatch)throw new Error('JSON not found');
+      const parsed=JSON.parse(jsonMatch[0]);
+
+      // フォームに流し込む
+      const industryList=['建設業','住宅・不動産','ホテル・宿泊','設計事務所','デザイナー事務所','工務店','ゼネコン','その他'];
+      const titleList=['代表取締役','社長','副社長','専務','常務','取締役','部長','課長','係長','主任','担当者','その他'];
+      const setVal=(id,val)=>{const el=document.getElementById(id);if(el&&val)el.value=val;};
+      const setSelect=(id,val,list)=>{const el=document.getElementById(id);if(!el||!val)return;const match=list.find(s=>s===val||val.includes(s));if(match)el.value=match;};
+
+      setVal('f-company', parsed.company);
+      setSelect('f-industry', parsed.industry, industryList);
+      setVal('f-phone', parsed.phone);
+      setVal('f-mobile', parsed.mobile);
+      setVal('f-email', parsed.email);
+      setVal('f-website', parsed.website);
+      setVal('f-address', parsed.address);
+      setVal('f-contact', parsed.contact);
+      setSelect('f-contact-title', parsed.contact_title, titleList);
+      setVal('f-aisheet', text);
+
+      // 読み取り結果サマリー
+      const found=Object.entries(parsed).filter(([k,v])=>v).map(([k])=>({company:'会社名',industry:'業種',contact:'担当者',contact_title:'役職',phone:'電話',mobile:'携帯',email:'メール',website:'HP',address:'住所'}[k])).filter(Boolean);
+      status.innerHTML=`<span style="color:var(--green)">✓ 読み取り完了（${found.join('・')}）</span>`;
+
+      // ハイライト（読み取られたフィールドを一時的に強調）
+      ['f-company','f-phone','f-mobile','f-email','f-website','f-address','f-contact'].forEach(id=>{
+        const el=document.getElementById(id);
+        if(el&&el.value){el.style.borderColor='var(--green)';el.style.background='var(--green-bg)';setTimeout(()=>{el.style.borderColor='';el.style.background='';},3000);}
+      });
+    }catch(e){
+      status.innerHTML=`<span style="color:var(--red)">読み取りに失敗しました。テキストを確認してください。</span>`;
+    }finally{
+      btn.disabled=false;btn.innerHTML=`<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg> AIで読み取る`;
+    }
+  };
+
+  window.selectRank=function(r){
+    document.getElementById('f-rank').value=r;
+    ['S','A','B','C'].forEach(x=>{
+      const el=document.getElementById('rcard-'+x);
+      if(el){el.className='rank-card'+(x===r?' sel-'+r:'');}
+    });
+  };
+  window.saveCustomer=async function(eid){
+    const company=document.getElementById('f-company').value.trim();
+    if(!company){alert('会社名は必須です');return;}
+    const titleSelect=document.getElementById('f-contact-title').value;
+    const titleCustom=document.getElementById('f-contact-title-custom').value.trim();
+    const contact_title=titleCustom||titleSelect;
+    const existing=eid?DB.get('customers').find(c=>c.id===eid):null;
+    const newC={
+      id:eid||DB.id(), company,
+      industry:document.getElementById('f-industry').value,
+      contact:document.getElementById('f-contact').value,
+      contact_title,
+      phone:document.getElementById('f-phone').value,
+      mobile:document.getElementById('f-mobile').value,
+      email:document.getElementById('f-email').value,
+      website:document.getElementById('f-website').value,
+      address:document.getElementById('f-address').value,
+      ai_sheet:document.getElementById('f-aisheet').value,
+      ai_summary:null,
+      memo:document.getElementById('f-memo').value,
+      rank:document.getElementById('f-rank').value,
+      phase:document.getElementById('f-phase').value,
+      priority:parseInt(document.getElementById('f-priority').value),
+      created_at:existing?.created_at||new Date().toISOString()
+    };
+    try{
+      await DB.upsert('customers', newC);
+      navigate('customer/detail',{id:newC.id});
+    }catch(e){ alert('保存に失敗しました: '+e.message); }
+  };
+
+  window.deleteCustomer=async function(eid){
+    if(!confirm('この顧客を削除しますか？関連データも削除されます。'))return;
+    try{
+      await DB.remove('customers',eid);
+      navigate('customers');
+    }catch(e){ alert('削除に失敗しました: '+e.message); }
+  };
+}
+
+function renderApo(el){
+  let filter='all';
+  function getApos(){ return DB.get('apos'); }
+  function getTrash(){ return DB.get('apo_trash'); }
+
+  function render(){
+    const apos=getApos();
+    const trash=getTrash();
+    const f=apos.filter(a=>filter==='all'||a.priority===filter||(filter==='アポ済み'&&a.status==='アポ済み')||(filter==='ゴミ箱'&&false));
+    const showTrash=filter==='ゴミ箱';
+    const listData=showTrash?trash:f;
+
+    el.innerHTML=`
+      <div class="page-header">
+        <div><h2>新規アポリスト</h2><p>${apos.length}件登録${trash.length>0?' · <span style="color:var(--amber)">🗑 ゴミ箱 '+trash.length+'件</span>':''}</p></div>
+        <button class="btn btn-primary" onclick="navigate('apo/new')">${svgPlus} アポ先を追加</button>
+      </div>
+      <div style="display:flex;gap:12px;margin-bottom:16px">
+        <div class="tab-bar">
+          ${['all','A','B','C','アポ済み','ゴミ箱'].map(s=>`<div class="tab ${filter===s?'active':''}" onclick="apoF('${s}')">${s==='all'?'すべて':s==='A'?'Aランク':s==='B'?'Bランク':s==='C'?'Cランク':s==='アポ済み'?'アポ済み':'🗑 ゴミ箱'+(trash.length>0?' ('+trash.length+')':'')}</div>`).join('')}
+        </div>
+      </div>
+      ${showTrash&&trash.length>0?`<div class="trash-banner">🗑 削除済みアイテム（30日以内に復元できます）<button class="btn btn-secondary btn-sm" onclick="emptyTrash()">ゴミ箱を空にする</button></div>`:''}
+      <div class="card"><table class="table">
+        <thead><tr><th>ランク</th><th>会社名</th><th>業種</th><th>住所</th><th>電話</th>
+          ${showTrash?'<th>削除日</th><th>操作</th>':'<th>訪問予定</th><th>情報源</th><th>ステータス</th><th>操作</th>'}
+        </tr></thead>
+        <tbody>${listData.length===0?`<tr><td colspan="8" style="text-align:center;padding:40px;color:var(--text3)">${showTrash?'ゴミ箱は空です':'リストが空です'}</td></tr>`:listData.map(a=>`<tr>
+          <td><span class="badge ${a.priority==='A'?'badge-red':a.priority==='B'?'badge-amber':'badge-gray'}">${a.priority}</span></td>
+          <td>
+            <strong>${a.company}</strong>
+            ${a.note?`<div class="text-sm text-muted" style="margin-top:2px">${a.note}</div>`:''}
+            ${!showTrash&&a.visit_contact?`<div class="text-sm" style="margin-top:3px;color:var(--accent)">👤 ${a.visit_contact_unknown?'担当者未確定':a.visit_contact}</div>`:''}
+          </td>
+          <td class="text-muted">${a.industry}</td>
+          <td class="text-sm text-muted">${a.address||'—'}</td>
+          <td class="mono text-sm">${a.phone?`<a href="tel:${a.phone}">${a.phone}</a>`:'—'}</td>
+          ${showTrash?`
+            <td class="mono text-sm">${a.deleted_at?a.deleted_at.split('T')[0]:'—'}</td>
+            <td><button class="btn btn-secondary btn-sm" style="color:var(--green)" onclick="restoreApo('${a.id}');event.stopPropagation()">復元</button></td>
+          `:`
+            <td>${a.visit_date?`<span class="apo-visit-badge">📅 ${a.visit_date}</span>`:'<span class="text-muted text-sm">—</span>'}</td>
+            <td><span class="badge badge-gray">${a.source}</span></td>
+            <td>
+              <span class="badge ${a.status==='アポ済み'?'badge-green':a.status==='訪問済み'?'badge-purple':'badge-blue'}"
+                style="cursor:pointer;user-select:none"
+                title="クリックで切り替え"
+                onclick="cycleApoStatus('${a.id}',this);event.stopPropagation()">
+                ${a.status==='アポ済み'?'✓ アポ済み':a.status}
+              </span>
+            </td>
+            <td><div style="display:flex;gap:4px">
+              <button class="btn btn-secondary btn-sm apo-done-btn ${a.status==='アポ済み'?'is-done':''}" id="done-btn-${a.id}" onclick="apoMarkDone('${a.id}',this);event.stopPropagation()">${a.status==='アポ済み'?'✓ アポ済み':'アポ済み'}</button>
+              <button class="btn btn-secondary btn-sm" onclick="openApoDetail('${a.id}');event.stopPropagation()">詳細</button>
+              <button class="btn btn-secondary btn-sm" onclick="apoToCustomer('${a.id}');event.stopPropagation()">顧客化</button>
+              <button class="btn btn-secondary btn-sm" style="color:var(--red)" onclick="deleteApo('${a.id}');event.stopPropagation()">削除</button>
+            </div></td>
+          `}
+        </tr>`).join('')}</tbody>
+      </table></div>`;
+  }
+
+  window.apoF=s=>{filter=s;render();};
+
+  // ステータスバッジをクリックするたびに順番切り替え
+  window.cycleApoStatus=async function(aid, badge){
+    const cycle=['未訪問','アポ済み','訪問済み'];
+    const apos=DB.get('apos');
+    const i=apos.findIndex(a=>a.id===aid);
+    if(i===-1)return;
+    const cur=apos[i].status||'未訪問';
+    const next=cycle[(cycle.indexOf(cur)+1)%cycle.length];
+    try{ await DB.update('apos',aid,{status:next}); }catch(e){ console.error(e); }
+    // バッジを即時更新
+    if(badge){
+      badge.className='badge '+(next==='アポ済み'?'badge-green':next==='訪問済み'?'badge-purple':'badge-blue');
+      badge.textContent=next==='アポ済み'?'✓ アポ済み':next;
+    }
+    // アポ済みボタンも同期
+    const doneBtn=document.getElementById('done-btn-'+aid);
+    if(doneBtn){
+      const isDone=next==='アポ済み';
+      doneBtn.classList.toggle('is-done',isDone);
+      doneBtn.textContent=isDone?'✓ アポ済み':'アポ済み';
+    }
+  };
+
+  window.apoMarkDone=function(aid, btn){
+    const apos=DB.get('apos');
+    const i=apos.findIndex(a=>a.id===aid);
+    if(i===-1)return;
+    const already=apos[i].status==='アポ済み';
+    apos[i].status=already?'未訪問':'アポ済み';
+    DB.set('apos',apos);
+    if(btn){
+      btn.classList.toggle('is-done',!already);
+      btn.textContent=already?'アポ済み':'✓ アポ済み';
+    }
+    // バッジも同期
+    const statusBadges=document.querySelectorAll('[onclick*="cycleApoStatus(\''+aid+'\',this)"]');
+    statusBadges.forEach(b=>{
+      const st=apos[i].status;
+      b.className='badge '+(st==='アポ済み'?'badge-green':st==='訪問済み'?'badge-purple':'badge-blue');
+      b.textContent=st==='アポ済み'?'✓ アポ済み':st;
+    });
+  };
+
+  window.openApoDetail=function(aid){
+    const a=DB.get('apos').find(a=>a.id===aid);
+    if(!a)return;
+    openModal(`
+      <div class="modal-header">
+        <div class="modal-title">${a.company} — 詳細・編集</div>
+        <div class="modal-close" onclick="closeModal()">×</div>
+      </div>
+      <div class="modal-body">
+        <div class="form-section-title" style="margin-bottom:14px">訪問予定</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+          <div class="form-group">
+            <label class="form-label">訪問予定日</label>
+            <input class="form-control" id="ad-visit-date" type="date" value="${a.visit_date||''}">
+          </div>
+          <div class="form-group" style="justify-content:flex-end;padding-top:22px">
+            <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:13px">
+              <input type="checkbox" id="ad-contact-unknown" ${a.visit_contact_unknown?'checked':''} onchange="toggleContactUnknown(this.checked)" style="width:15px;height:15px;cursor:pointer">
+              担当者未確定（その場で対応）
+            </label>
+          </div>
+        </div>
+        <div class="form-group" id="ad-contact-group" style="margin-bottom:16px;${a.visit_contact_unknown?'opacity:0.4;pointer-events:none':''}">
+          <label class="form-label">訪問担当者名</label>
+          <input class="form-control" id="ad-contact" value="${a.visit_contact||''}" placeholder="例: 田中部長、鈴木さん など">
+          <div class="form-hint">名刺をもらえていない場合や、担当者名がわからない場合は空欄のまま「担当者未確定」にチェック</div>
+        </div>
+        <div class="form-section-title" style="margin-bottom:14px">基本情報</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
+          <div class="form-group"><label class="form-label">ランク</label>
+            <select class="form-control" id="ad-priority">
+              ${['A','B','C'].map(r=>`<option value="${r}" ${a.priority===r?'selected':''}>${r}ランク</option>`).join('')}
+            </select>
+          </div>
+          <div class="form-group"><label class="form-label">ステータス</label>
+            <select class="form-control" id="ad-status">
+              ${['未訪問','アポ済み','訪問済み'].map(s=>`<option ${a.status===s?'selected':''}>${s}</option>`).join('')}
+            </select>
+          </div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">メモ</label>
+          <textarea class="form-control" id="ad-note" rows="3">${a.note||''}</textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+        <button class="btn btn-primary" onclick="saveApoDetail('${a.id}')">保存する</button>
+      </div>
+    `);
+    window.toggleContactUnknown=function(checked){
+      const g=document.getElementById('ad-contact-group');
+      if(g){g.style.opacity=checked?'0.4':'1';g.style.pointerEvents=checked?'none':'auto';}
+    };
+  };
+
+  window.saveApoDetail=async function(aid){
+    const changes={
+      visit_date:document.getElementById('ad-visit-date').value||null,
+      visit_contact:document.getElementById('ad-contact').value,
+      visit_contact_unknown:document.getElementById('ad-contact-unknown').checked,
+      priority:document.getElementById('ad-priority').value,
+      status:document.getElementById('ad-status').value,
+      note:document.getElementById('ad-note').value
+    };
+    try{
+      await DB.update('apos',aid,changes);
+      closeModal();render();
+    }catch(e){ alert('保存に失敗しました: '+e.message); }
+  };
+
+  window.apoToCustomer=function(aid){
+    const a=DB.get('apos').find(a=>a.id===aid);
+    navigate('customer/new');
+    setTimeout(()=>{
+      document.getElementById('f-company').value=a.company||'';
+      document.getElementById('f-aisheet').value=a.note||'';
+      if(a.visit_contact&&!a.visit_contact_unknown)
+        document.getElementById('f-contact').value=a.visit_contact;
+    },100);
+  };
+
+  window.deleteApo=async function(aid){
+    if(!confirm('削除しますか？\nゴミ箱に移動します（復元できます）'))return;
+    const target=DB.get('apos').find(a=>a.id===aid);
+    if(!target)return;
+    try{
+      await DB.insert('apo_trash',{...target, deleted_at:new Date().toISOString()});
+      await DB.remove('apos',aid);
+      render();
+    }catch(e){ alert('削除に失敗しました: '+e.message); }
+  };
+
+  window.restoreApo=async function(aid){
+    const target=DB.get('apo_trash').find(a=>a.id===aid);
+    if(!target)return;
+    const restored={...target};
+    delete restored.deleted_at;
+    try{
+      await DB.insert('apos',restored);
+      await DB.remove('apo_trash',aid);
+      render();
+    }catch(e){ alert('復元に失敗しました: '+e.message); }
+  };
+
+  window.emptyTrash=async function(){
+    if(!confirm('ゴミ箱を完全に空にしますか？\nこの操作は元に戻せません。'))return;
+    const ids=DB.get('apo_trash').map(a=>a.id);
+    try{
+      await Promise.all(ids.map(id=>DB.remove('apo_trash',id)));
+      render();
+    }catch(e){ alert('削除に失敗しました: '+e.message); }
+  };
+
+  render();
+}
+
+function renderApoNew(el){
+  const INDUSTRIES=['建設業','住宅・不動産','ホテル・宿泊','設計事務所','デザイナー事務所','工務店','ゼネコン','その他'];
+  const SOURCES=['Web調査','紹介','飛び込み予定','展示会','SNS','その他'];
+  let selectedRank='A';
+
+  el.innerHTML=`
+    <div class="detail-back" onclick="navigate('apo')">${svgBack} アポリストに戻る</div>
+    <div class="page-header"><div><h2>アポ先を追加</h2></div></div>
+    <div style="max-width:760px">
+
+      <!-- AI読み取りパネル -->
+      <div class="card" style="margin-bottom:20px;overflow:hidden">
+        <div style="padding:14px 20px;background:linear-gradient(135deg,#EDF1FD,#F3EDFB);border-bottom:1px solid #C8D4F9;display:flex;align-items:center;gap:10px">
+          <span class="ai-badge">AI</span>
+          <span style="font-size:14px;font-weight:600">AIシートから自動入力</span>
+          <span style="font-size:12px;color:var(--text2);margin-left:4px">調査シートを貼り付けると会社名・住所・電話などを自動で読み取ります</span>
+        </div>
+        <div style="padding:16px 20px">
+          <div class="form-group" style="margin-bottom:12px">
+            <label class="form-label">調査シートをここに貼り付け</label>
+            <textarea class="form-control" id="fai-text" rows="4" placeholder="ChatGPT・Perplexityなどの調査結果をそのまま貼り付けてください&#10;&#10;例：&#10;会社名：株式会社◯◯設計&#10;業種：設計事務所&#10;電話：03-xxxx-xxxx&#10;所在地：東京都渋谷区...&#10;概要：マンション・商業施設の設計を中心に..."></textarea>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-primary" id="fai-read-btn" onclick="runApoAiImport()">
+              <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg>
+              AIで読み取る
+            </button>
+            <span id="fai-status" style="font-size:12px;color:var(--text2)"></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 入力フォーム -->
+      <div class="card" style="padding:24px;margin-bottom:16px">
+        <div class="form-section-title">会社情報</div>
+        <div class="form-row cols-2" style="margin-bottom:16px">
+          <div class="form-group"><label class="form-label">会社名 <span>*</span></label><input class="form-control" id="fa-company" placeholder="例: 株式会社◯◯設計"></div>
+          <div class="form-group"><label class="form-label">業種</label><select class="form-control" id="fa-industry">${INDUSTRIES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:16px">
+          <div class="form-group"><label class="form-label">住所</label><input class="form-control" id="fa-address" placeholder="例: 東京都新宿区..."></div>
+          <div class="form-group"><label class="form-label">電話番号</label><input class="form-control" id="fa-phone" type="tel" placeholder="03-xxxx-xxxx"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:0">
+          <label class="form-label">ホームページ</label>
+          <input class="form-control" id="fa-website" placeholder="https://">
+        </div>
+      </div>
+
+      <div class="card" style="padding:24px;margin-bottom:16px">
+        <div class="form-section-title">ランク・管理情報</div>
+        <div class="form-group" style="margin-bottom:16px">
+          <label class="form-label">優先ランク</label>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:4px">
+            ${[['A','🔥','優先A','月2〜4回','var(--red)','var(--red-bg)','var(--red)'],
+               ['B','📋','優先B','月1回','var(--amber)','var(--amber-bg)','var(--amber)'],
+               ['C','🔵','優先C','年1回程度','#5A5755','#F8F7F3','var(--border2)']].map(([r,icon,name,freq,tc,bg,bc])=>`
+              <div class="rank-card" id="fa-rcard-${r}" onclick="faSetRank('${r}')">
+                <div class="rl" style="color:${tc}">${icon} ${r}</div>
+                <div class="rn">${name}</div>
+                <div class="rf">${freq}</div>
+              </div>`).join('')}
+          </div>
+          <input type="hidden" id="fa-rank" value="A">
+        </div>
+        <div class="form-row cols-2" style="margin-bottom:0">
+          <div class="form-group"><label class="form-label">情報源</label><select class="form-control" id="fa-source">${SOURCES.map(s=>`<option>${s}</option>`).join('')}</select></div>
+          <div class="form-group"><label class="form-label">メモ・調査内容</label><input class="form-control" id="fa-note" placeholder="特記事項など"></div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:12px;padding-bottom:48px">
+        <button class="btn btn-primary" style="padding:11px 28px;font-size:14px" onclick="saveApo()">追加する</button>
+        <button class="btn btn-secondary" style="padding:11px 20px" onclick="navigate('apo')">キャンセル</button>
+      </div>
+    </div>`;
+
+  window.faSetRank=function(r){
+    selectedRank=r;
+    document.getElementById('fa-rank').value=r;
+    const styles={
+      A:{border:'var(--red)',   bg:'var(--red-bg)'},
+      B:{border:'var(--amber)', bg:'var(--amber-bg)'},
+      C:{border:'var(--border2)', bg:'#F8F7F3'}
+    };
+    ['A','B','C'].forEach(x=>{
+      const el=document.getElementById('fa-rcard-'+x);
+      if(!el)return;
+      // cssText で完全上書き（既存インラインスタイルを排除）
+      if(x===r){
+        el.style.cssText=`border-color:${styles[x].border}!important;background:${styles[x].bg}!important;cursor:pointer;`;
+      } else {
+        el.style.cssText='cursor:pointer;';
+      }
+    });
+  };
+
+  window.runApoAiImport=async function(){
+    const text=document.getElementById('fai-text')?.value?.trim();
+    if(!text){alert('調査シートを貼り付けてください');return;}
+    const btn=document.getElementById('fai-read-btn');
+    const status=document.getElementById('fai-status');
+    btn.disabled=true; btn.textContent='読み取り中...';
+    status.innerHTML='<span style="color:var(--accent)">AIが解析中...</span>';
+
+    const prompt=`以下のテキストから企業・会社の情報を抽出してください。JSONのみ返してください。説明文不要。
+フィールド:
+- company: 会社名・法人名（見つからなければ空文字）
+- industry: 業種（建設業/住宅・不動産/ホテル・宿泊/設計事務所/デザイナー事務所/工務店/ゼネコン/その他 から最適なもの。わからなければ空文字）
+- phone: 代表電話番号（見つからなければ空文字）
+- address: 所在地・住所（見つからなければ空文字）
+- website: WebサイトURL（見つからなければ空文字）
+- is_company_info: このテキストが企業情報かどうか true/false
+- memo: 企業情報でない場合や補足があれば簡潔にまとめたメモ（100文字以内）
+
+テキスト:
+${text.slice(0,3000)}`;
+
+    try{
+      const data=await callClaudeAPI([{role:'user',content:prompt}],500);
+      const raw=data.content?.find(b=>b.type==='text')?.text||'';
+      const m=raw.match(/\{[\s\S]*\}/);
+      if(!m)throw new Error('JSON not found');
+      const p=JSON.parse(m[0]);
+
+      const setVal=(id,val)=>{const el=document.getElementById(id);if(el&&val)el.value=val;};
+      const setSelect=(id,val,list)=>{const el=document.getElementById(id);if(!el||!val)return;const match=list.find(s=>val.includes(s)||s===val);if(match)el.value=match;};
+
+      if(!p.is_company_info || !p.company){
+        // 企業情報でないテキストの場合 → メモに保存してガイドを表示
+        const noteEl=document.getElementById('fa-note');
+        if(noteEl) noteEl.value=p.memo||text.slice(0,150)+(text.length>150?'…':'');
+        status.innerHTML=`<span style="color:var(--amber)">⚠️ 企業情報が見つかりませんでした。テキストはメモ欄に保存しました。会社名など必要な項目は手入力してください。</span>`;
+      } else {
+        setVal('fa-company',p.company);
+        setSelect('fa-industry',p.industry,INDUSTRIES);
+        setVal('fa-phone',p.phone);
+        setVal('fa-address',p.address);
+        setVal('fa-website',p.website);
+        // 元テキストの要約をメモに保存
+        document.getElementById('fa-note').value=p.memo||(text.slice(0,150)+(text.length>150?'…':''));
+        const found=Object.entries(p).filter(([k,v])=>v&&['company','industry','phone','address','website'].includes(k)).map(([k])=>({company:'会社名',industry:'業種',phone:'電話',address:'住所',website:'HP'}[k])).filter(Boolean);
+        status.innerHTML=`<span style="color:var(--green)">✓ 読み取り完了（${found.join('・')}）</span>`;
+        ['fa-company','fa-phone','fa-address','fa-website'].forEach(id=>{
+          const el=document.getElementById(id);
+          if(el&&el.value){el.style.borderColor='var(--green)';el.style.background='var(--green-bg)';setTimeout(()=>{el.style.borderColor='';el.style.background='';},3000);}
+        });
+      }
+    }catch(e){
+      const msg=e?.message||String(e);
+      if(msg==='NO_API_KEY'){
+        status.innerHTML='<span style="color:var(--amber)">⚠️ APIキーが設定されていません。<button class=\"btn btn-secondary btn-sm\" style=\"margin-left:8px\" onclick=\"openApiKeySetting()\">設定する</button></span>';
+      } else if(msg.includes('JSON')){
+        status.innerHTML='<span style="color:var(--red)">⚠️ AIの応答を解析できませんでした。もう一度お試しください。</span>';
+      } else {
+        status.innerHTML='<span style="color:var(--red)">⚠️ エラー: '+msg+'</span>';
+      }
+      console.error('[ApoAI]',msg,e);
+    }finally{
+      btn.disabled=false;
+      btn.innerHTML='<svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:#fff;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg> AIで読み取る';
+    }
+  };
+
+  // ページ描画後に初期ランク(A)を視覚的に選択状態にする
+  setTimeout(()=>window.faSetRank&&window.faSetRank('A'), 0);
+
+  window.saveApo=async function(){
+    const company=document.getElementById('fa-company').value.trim();
+    if(!company){alert('会社名は必須です');return;}
+    try{
+      await DB.insert('apos',{
+        id:DB.id(), company,
+        address:document.getElementById('fa-address').value,
+        industry:document.getElementById('fa-industry').value,
+        phone:document.getElementById('fa-phone').value,
+        website:document.getElementById('fa-website').value||'',
+        priority:document.getElementById('fa-rank').value,
+        status:'未訪問',
+        source:document.getElementById('fa-source').value,
+        note:document.getElementById('fa-note').value,
+        created_at:new Date().toISOString()
+      });
+      navigate('apo');
+    }catch(e){ alert('追加に失敗しました: '+e.message); }
+  };
+}
+
+function renderVisits(el){
+  const visits=DB.get('visits').sort((a,b)=>b.visited_at>a.visited_at?1:-1);
+  const customers=DB.get('customers');
+  el.innerHTML=`
+    <div class="page-header"><div><h2>訪問履歴</h2><p>${visits.length}件</p></div><button class="btn btn-primary" onclick="navigate('visit/new',{})">${svgPlus} 訪問を記録</button></div>
+    <div class="card"><table class="table">
+      <thead><tr><th>訪問日</th><th>顧客</th><th>打合せ内容</th><th>次回アクション</th><th>次回訪問</th></tr></thead>
+      <tbody>${visits.length===0?`<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text3)">訪問履歴がありません</td></tr>`:visits.map(v=>{const c=customers.find(c=>c.id===v.customer_id);return`<tr onclick="navigate('customer/detail',{id:'${v.customer_id}'})"><td class="mono" style="white-space:nowrap">${v.visited_at}</td><td><strong>${c?.company||'不明'}</strong></td><td class="text-muted" style="max-width:280px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${v.content}</td><td class="text-sm text-muted">${v.next_action||'—'}</td><td>${v.next_visit?`<span class="badge badge-green mono">${v.next_visit}</span>`:'—'}</td></tr>`;}).join('')}
+      </tbody>
+    </table></div>`;
+}
+
+function renderVisitNew(el,{customer_id}){
+  const customers=DB.get('customers');
+  el.innerHTML=`
+    <div class="detail-back" onclick="navigate(${customer_id?`'customer/detail',{id:'${customer_id}'}`:'\'visits\''})">${svgBack} 戻る</div>
+    <div class="page-header"><div><h2>訪問を記録する</h2></div></div>
+    <div style="max-width:700px"><div class="card" style="padding:24px">
+      <div class="form-row cols-2">
+        <div class="form-group"><label class="form-label">顧客 <span>*</span></label><select class="form-control" id="fv-customer"><option value="">選択してください</option>${customers.map(c=>`<option value="${c.id}" ${c.id===customer_id?'selected':''}>${c.company}</option>`).join('')}</select></div>
+        <div class="form-group"><label class="form-label">訪問日 <span>*</span></label><input class="form-control" id="fv-date" type="date" value="${today()}"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:16px"><label class="form-label">打合せ内容 <span>*</span></label><textarea class="form-control" id="fv-content" rows="5" placeholder="話した内容、反応、気になった点など何でも書いてください"></textarea></div>
+      <div class="form-row cols-2">
+        <div class="form-group"><label class="form-label">次回アクション</label><input class="form-control" id="fv-action" placeholder="例: サンプルを送付する"></div>
+        <div class="form-group"><label class="form-label">次回訪問予定日</label><input class="form-control" id="fv-next" type="date"></div>
+      </div>
+    </div>
+    <div style="margin-top:16px"><button class="btn btn-primary" style="padding:11px 28px;font-size:14px" onclick="saveVisit()">記録する</button></div></div>`;
+  window.saveVisit=async function(){
+    const cid=document.getElementById('fv-customer').value;
+    const visitContent=document.getElementById('fv-content').value.trim();
+    if(!cid){alert('顧客を選択してください');return;}
+    if(!visitContent){alert('打合せ内容を入力してください');return;}
+    try{
+      await DB.insert('visits',{id:DB.id(),customer_id:cid,visited_at:document.getElementById('fv-date').value,content:visitContent,next_action:document.getElementById('fv-action').value,next_visit:document.getElementById('fv-next').value||null,created_at:new Date().toISOString()});
+      // アドバイスをリセット
+      await DB.update('customers',cid,{ai_advice:null,ai_advice_date:null});
+      navigate('customer/detail',{id:cid});
+    }catch(e){ alert('記録に失敗しました: '+e.message); }
+  };
+}
+
+function renderTodos(el){
+  const todos=DB.get('todos').sort((a,b)=>(a.due||'9999')>(b.due||'9999')?1:-1);
+  const customers=DB.get('customers');let filter='pending';
+  function render(){
+    const f=todos.filter(t=>filter==='all'?true:filter==='done'?t.done:!t.done);
+    el.innerHTML=`
+      <div class="page-header"><div><h2>ToDo</h2></div><button class="btn btn-primary" onclick="openTodoModal(null)">${svgPlus} 追加</button></div>
+      <div style="display:flex;gap:12px;margin-bottom:16px"><div class="tab-bar">${[['pending','未完了'],['done','完了済み'],['all','すべて']].map(([v,l])=>`<div class="tab ${filter===v?'active':''}" onclick="todoF('${v}')">${l}</div>`).join('')}</div></div>
+      <div class="card"><table class="table">
+        <thead><tr><th></th><th>タスク</th><th>関連顧客</th><th>期限日</th><th>優先度</th></tr></thead>
+        <tbody>${f.length===0?`<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text3)">${filter==='done'?'完了済みタスクはありません':'タスクはありません'}</td></tr>`:f.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;const isOverdue=t.due&&t.due<today()&&!t.done;return`<tr class="${t.done?'done':''}" onclick="toggleTodo('${t.id}')"><td><div class="todo-check ${t.done?'done':''}"></div></td><td><span ${t.done?'style="text-decoration:line-through;color:var(--text3)"':''}>${t.title}</span></td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td>${t.due?`<span class="badge ${isOverdue?'badge-red':'badge-gray'} mono">${isOverdue?'⚠️ ':''}${t.due}</span>`:'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td></tr>`;}).join('')}
+        </tbody>
+      </table></div>`;
+  }
+  window.todoF=f=>{filter=f;render();};render();
+}
+
+window.toggleTodo=async function(id){
+  const todo=DB.get('todos').find(t=>t.id===id);
+  if(!todo)return;
+  try{
+    await DB.update('todos',id,{done:!todo.done});
+    navigate(currentPage);
+  }catch(e){ console.error('todo toggle failed:',e); }
+};
+
+window.openTodoModal=function(customerId){
+  const customers=DB.get('customers');
+  openModal(`<div class="modal-header"><div class="modal-title">ToDoを追加</div><div class="modal-close" onclick="closeModal()">×</div></div>
+    <div class="modal-body">
+      <div class="form-group" style="margin-bottom:14px"><label class="form-label">タスク名 <span style="color:var(--red)">*</span></label><input class="form-control" id="mt-title" placeholder="例: サンプルを送付する"></div>
+      <div class="form-row cols-2" style="margin-bottom:14px">
+        <div class="form-group"><label class="form-label">期限日</label><input class="form-control" id="mt-due" type="date"></div>
+        <div class="form-group"><label class="form-label">優先度</label><select class="form-control" id="mt-priority"><option value="high">高</option><option value="medium" selected>中</option><option value="low">低</option></select></div>
+      </div>
+      <div class="form-group"><label class="form-label">関連顧客</label><select class="form-control" id="mt-customer"><option value="">なし</option>${customers.map(c=>`<option value="${c.id}" ${c.id===customerId?'selected':''}>${c.company}</option>`).join('')}</select></div>
+    </div>
+    <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">キャンセル</button><button class="btn btn-primary" onclick="saveTodo()">追加する</button></div>`);
+};
+window.saveTodo=async function(){
+  const title=document.getElementById('mt-title').value.trim();if(!title){alert('タスク名を入力してください');return;}
+  try{
+    await DB.insert('todos',{id:DB.id(),title,due:document.getElementById('mt-due').value||null,customer_id:document.getElementById('mt-customer').value||null,priority:document.getElementById('mt-priority').value,done:false,created_at:new Date().toISOString()});
+    closeModal();navigate(currentPage);
+  }catch(e){ alert('追加に失敗しました: '+e.message); }
+};
+
+function openModal(html){document.getElementById('modal-content').innerHTML=html;document.getElementById('modal-overlay').classList.add('open');}
+function closeModal(){document.getElementById('modal-overlay').classList.remove('open');}
+function closeModalOutside(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
+
+updateApiKeyStatus();
+initDB().then(() => navigate('dash'));
+</script>
+</body>
+</html>
