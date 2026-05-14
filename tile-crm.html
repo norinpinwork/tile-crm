@@ -282,13 +282,112 @@ textarea.form-control { resize: vertical; min-height: 90px; }
   }
 })();
 
+// ===== SUPABASE設定 =====
+const SUPABASE_URL = "https://dfkplbwymlocuyocffsx.supabase.co";
+const SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRma3BsYnd5bWxvY3V5b2NmZnN4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzg3MDA3MDgsImV4cCI6MjA5NDI3NjcwOH0.I2KNMCt76i5BVgQyykJrheNIPz8aoAIhHiiBExxfNTg";
+
+async function sbFetch(table, method="GET", body=null, query="") {
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${table}${query}`, {
+    method,
+    headers: {
+      "apikey": SUPABASE_KEY,
+      "Authorization": "Bearer " + SUPABASE_KEY,
+      "Content-Type": "application/json",
+      "Prefer": method==="POST" ? "return=representation" : method==="PATCH"||method==="PUT" ? "return=representation" : ""
+    },
+    body: body ? JSON.stringify(body) : null
+  });
+  if(!res.ok) { const e=await res.json().catch(()=>({})); throw new Error(e.message||res.status); }
+  if(res.status===204) return [];
+  return res.json();
+}
+
+// ローカルキャッシュ（高速表示用）
+const CACHE = {};
+
 const DB = {
-  get(k) { try { return JSON.parse(localStorage.getItem('tilecrm_'+k))||[]; } catch(e){ return []; } },
-  set(k,v) { localStorage.setItem('tilecrm_'+k, JSON.stringify(v)); },
+  // Supabase経由でデータ取得（キャッシュ付き）
+  async getAsync(table) {
+    try {
+      const data = await sbFetch(table, "GET", null, "?order=created_at.asc");
+      CACHE[table] = data;
+      return data;
+    } catch(e) {
+      console.warn("Supabase fetch failed, using cache:", e.message);
+      return CACHE[table] || [];
+    }
+  },
+  // 同期版（キャッシュから）
+  get(k) {
+    return CACHE[k] || [];
+  },
+  // ローカルのRaw（APIキーなど端末固有データ用）
   getRaw(k) { return localStorage.getItem('tilecrm_'+k)||''; },
   setRaw(k,v) { localStorage.setItem('tilecrm_'+k, v); },
-  id() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); }
+  id() { return Date.now().toString(36)+Math.random().toString(36).slice(2,6); },
+
+  // Supabase書き込み
+  async insert(table, row) {
+    const data = await sbFetch(table, "POST", row);
+    if(!CACHE[table]) CACHE[table]=[];
+    CACHE[table].push(Array.isArray(data)?data[0]:data);
+    return data;
+  },
+  async update(table, id, changes) {
+    await sbFetch(table, "PATCH", changes, `?id=eq.${id}`);
+    if(CACHE[table]) {
+      const i = CACHE[table].findIndex(r=>r.id===id);
+      if(i!==-1) CACHE[table][i] = {...CACHE[table][i], ...changes};
+    }
+  },
+  async remove(table, id) {
+    await sbFetch(table, "DELETE", null, `?id=eq.${id}`);
+    if(CACHE[table]) CACHE[table] = CACHE[table].filter(r=>r.id!==id);
+  },
+  async upsert(table, row) {
+    const data = await sbFetch(table, "POST", row, "");
+    if(!CACHE[table]) CACHE[table]=[];
+    const i = CACHE[table].findIndex(r=>r.id===row.id);
+    const rec = Array.isArray(data)?data[0]:data;
+    if(i!==-1) CACHE[table][i]=rec; else CACHE[table].push(rec);
+    return rec;
+  },
+  // 後方互換: set()は非同期upsertに委譲（古いコードとの互換用）
+  set(k, arr) {
+    // 旧localStorage形式との互換 - Supabase版では使わない
+    CACHE[k] = arr;
+  }
 };
+
+// 起動時に全テーブルをプリロード
+async function initDB() {
+  showLoading(true);
+  try {
+    await Promise.all([
+      DB.getAsync('customers'),
+      DB.getAsync('visits'),
+      DB.getAsync('todos'),
+      DB.getAsync('apos'),
+      DB.getAsync('apo_trash'),
+    ]);
+  } catch(e) {
+    console.error("DB init failed:", e);
+  }
+  showLoading(false);
+}
+
+function showLoading(show) {
+  let el = document.getElementById('db-loading');
+  if(show && !el) {
+    el = document.createElement('div');
+    el.id = 'db-loading';
+    el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:9999;background:var(--accent);color:#fff;padding:8px 20px;font-size:13px;text-align:center';
+    el.textContent = '⏳ データを読み込み中...';
+    document.body.prepend(el);
+  } else if(!show && el) {
+    el.remove();
+  }
+}
 
 // APIキー管理
 function getApiKey(){ return DB.getRaw('apikey'); }
@@ -363,37 +462,7 @@ async function callClaudeAPI(messages, maxTokens=500){
   return res.json();
 }
 
-function seedData() {
-  if (DB.get('customers').length) return;
-  const customers = [
-    {id:DB.id(),company:'株式会社田中建設',industry:'建設業',contact:'田中 誠',phone:'03-1234-5678',website:'https://tanaka-const.jp',ai_sheet:'大手ゼネコン案件が多い。外壁タイルの需要あり。',priority:5,rank:'A',phase:'提案中',created_at:new Date().toISOString()},
-    {id:DB.id(),company:'リゾートホテル琉球',industry:'ホテル・宿泊',contact:'山田 花子',phone:'098-765-4321',website:'',ai_sheet:'リノベーション計画中。インテリアタイル重視。',priority:4,rank:'A',phase:'未接触',created_at:new Date().toISOString()},
-    {id:DB.id(),company:'株式会社フジハウス',industry:'住宅・不動産',contact:'鈴木 太郎',phone:'06-9876-5432',website:'https://fuji-house.co.jp',ai_sheet:'年間50棟施工。キッチン・バスルームタイル需要。',priority:3,rank:'B',phase:'未接触',created_at:new Date().toISOString()},
-  ];
-  DB.set('customers',customers);
-  const visits = [
-    {id:DB.id(),customer_id:customers[0].id,visited_at:'2025-05-08',content:'外壁タイルの新商品カタログを持参。石材調シリーズに興味あり。サンプル請求いただいた。',next_action:'サンプル送付後、来週フォロー電話',next_visit:'2025-05-20',created_at:new Date().toISOString()},
-    {id:DB.id(),customer_id:customers[0].id,visited_at:'2025-04-25',content:'現場視察に同行。外壁の一部がタイル張りの予定。設計士への提案資料を作成中。',next_action:'設計士向け提案書を作成して送付',next_visit:'2025-05-10',created_at:new Date().toISOString()},
-    {id:DB.id(),customer_id:customers[1].id,visited_at:'2025-05-05',content:'ロビーリノベーションの打合せ。高級感のある大判タイルに興味。予算は150万円前後。',next_action:'大判タイルのサンプルと見積を準備',next_visit:'2025-05-18',created_at:new Date().toISOString()},
-  ];
-  DB.set('visits',visits);
-  const todos = [
-    {id:DB.id(),customer_id:customers[0].id,title:'サンプル送付（石材調シリーズ）',due:'2025-05-14',priority:'high',done:false,created_at:new Date().toISOString()},
-    {id:DB.id(),customer_id:customers[1].id,title:'大判タイル見積書を作成',due:'2025-05-16',priority:'high',done:false,created_at:new Date().toISOString()},
-    {id:DB.id(),customer_id:customers[2].id,title:'初回訪問アポ取り',due:'2025-05-15',priority:'medium',done:false,created_at:new Date().toISOString()},
-    {id:DB.id(),customer_id:null,title:'新商品カタログ補充',due:'2025-05-20',priority:'low',done:true,created_at:new Date().toISOString()},
-  ];
-  DB.set('todos',todos);
-  const apos = [
-    {id:DB.id(),company:'株式会社ミライ設計',address:'東京都新宿区西新宿2-1-1',industry:'設計事務所',phone:'03-5555-1234',note:'大型マンション設計多数。SNSで外観タイルの投稿あり。',status:'未訪問',priority:'A',source:'Web調査',created_at:new Date().toISOString()},
-    {id:DB.id(),company:'グランドリゾート株式会社',address:'東京都渋谷区道玄坂1-2-3',industry:'ホテル',phone:'03-4444-5678',note:'新ホテル開業予定。内装資材調達中。',status:'未訪問',priority:'A',source:'紹介',created_at:new Date().toISOString()},
-    {id:DB.id(),company:'東和建設株式会社',address:'神奈川県横浜市中区山下町1-1',industry:'建設業',phone:'045-333-2222',note:'タウンページで確認。施工実績多数。',status:'アポ済み',priority:'B',source:'飛び込み予定',created_at:new Date().toISOString()},
-    {id:DB.id(),company:'ハウスメイト不動産',address:'東京都品川区東品川1-5-8',industry:'不動産',phone:'03-6666-7890',note:'賃貸物件リノベ案件多い。',status:'未訪問',priority:'B',source:'Web調査',created_at:new Date().toISOString()},
-    {id:DB.id(),company:'伊藤工務店',address:'埼玉県さいたま市大宮区桜木町2-3',industry:'工務店',phone:'048-777-4321',note:'戸建て施工専門。年間30棟。紹介案件。',status:'未訪問',priority:'C',source:'紹介',created_at:new Date().toISOString()},
-  ];
-  DB.set('apos',apos);
-}
-seedData();
+
 
 let currentPage='dash';
 const svgPlus=`<svg viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>`;
@@ -415,12 +484,19 @@ const phaseBadge = p => p==='受注'?'badge-green':p==='失注'?'badge-gray':p==
 const today=()=>new Date().toISOString().split('T')[0];
 const fmtDate=d=>{const dt=new Date(d);return `${dt.getFullYear()}年${dt.getMonth()+1}月${dt.getDate()}日`;};
 
-function navigate(page,params={}) {
+async function navigate(page,params={}) {
   currentPage=page;
   document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
   const map={dash:'nav-dash',customers:'nav-customers',visits:'nav-visits',todos:'nav-todos',apo:'nav-apo'};
   const top=page.split('/')[0];
   if(map[top])document.getElementById(map[top])?.classList.add('active');
+  // トップレベルページはキャッシュをリフレッシュ
+  const refreshPages=['dash','customers','visits','todos','apo'];
+  if(refreshPages.includes(top)){
+    await Promise.all([
+      DB.getAsync('customers'),DB.getAsync('visits'),DB.getAsync('todos'),DB.getAsync('apos'),DB.getAsync('apo_trash')
+    ]).catch(()=>{});
+  }
   const main=document.getElementById('main');
   main.innerHTML='';
   const div=document.createElement('div');
@@ -450,8 +526,8 @@ function renderDash(el) {
         <div class="card-header"><h3>今日やること</h3><button class="btn btn-secondary btn-sm" onclick="openTodoModal(null)">${svgPlus} 追加</button></div>
         <div class="card-body">
           ${todayTodos.length===0?`<div class="empty"><div class="icon">✅</div><p>今日のタスクはありません</p></div>`:
-          `<table class="table"><thead><tr><th></th><th>タスク</th><th>顧客</th><th>優先度</th></tr></thead><tbody>
-          ${todayTodos.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;return`<tr class="${t.done?'done':''}" onclick="toggleTodo('${t.id}')"><td><div class="todo-check ${t.done?'done':''}"></div></td><td>${t.title}</td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td></tr>`;}).join('')}
+          `<table class="table"><thead><tr><th></th><th>タスク</th><th>顧客</th><th>優先度</th><th></th></tr></thead><tbody>
+          ${todayTodos.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;return`<tr class="${t.done?'done':''}"><td onclick="toggleTodo('${t.id}')" style="cursor:pointer"><div class="todo-check ${t.done?'done':''}"></div></td><td onclick="toggleTodo('${t.id}')" style="cursor:pointer">${t.title}</td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td><td><button class="btn btn-secondary btn-sm" style="color:var(--red);padding:4px 8px" onclick="deleteTodo('${t.id}');event.stopPropagation()">削除</button></td></tr>`;}).join('')}
           </tbody></table>`}
         </div>
       </div>
@@ -466,7 +542,7 @@ function renderDash(el) {
       </div>
     </div>
     <div class="grid-2">
-      ${overdue.length>0?`<div class="card"><div class="card-header"><h3>⚠️ フォロー漏れ</h3></div><div class="card-body"><table class="table"><thead><tr><th></th><th>タスク</th><th>顧客</th><th>期限</th></tr></thead><tbody>${overdue.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;return`<tr onclick="toggleTodo('${t.id}')"><td><div class="todo-check"></div></td><td>${t.title}</td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td><span class="badge badge-red mono">${t.due}</span></td></tr>`;}).join('')}</tbody></table></div></div>`:'<div></div>'}
+      ${overdue.length>0?`<div class="card"><div class="card-header"><h3>⚠️ フォロー漏れ</h3></div><div class="card-body"><table class="table"><thead><tr><th></th><th>タスク</th><th>顧客</th><th>期限</th></tr></thead><tbody>${overdue.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;return`<tr><td onclick="toggleTodo('${t.id}')" style="cursor:pointer"><div class="todo-check"></div></td><td onclick="toggleTodo('${t.id}')" style="cursor:pointer">${t.title}</td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td><span class="badge badge-red mono">${t.due}</span></td><td><button class="btn btn-secondary btn-sm" style="color:var(--red);padding:4px 8px" onclick="deleteTodo('${t.id}');event.stopPropagation()">削除</button></td></tr>`;}).join('')}</tbody></table></div></div>`:'<div></div>'}
       <div class="card">
         <div class="card-header"><h3>優先顧客</h3><button class="btn btn-secondary btn-sm" onclick="navigate('customers')">すべて表示</button></div>
         <div class="card-body">
@@ -566,7 +642,7 @@ function renderCustomerDetail(el,{id}) {
       </div>
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h3 style="font-size:13px;font-weight:700">ToDo</h3><button class="btn btn-secondary btn-sm" onclick="openTodoModal('${c.id}')">${svgPlus} 追加</button></div>
-        ${todos.length===0?`<div class="empty"><div class="icon">✅</div><p>ToDoがありません</p></div>`:`<div class="card"><table class="table"><thead><tr><th></th><th>タスク</th><th>期限</th><th>優先度</th></tr></thead><tbody>${todos.map(t=>`<tr class="${t.done?'done':''}" onclick="toggleTodo('${t.id}')"><td><div class="todo-check ${t.done?'done':''}"></div></td><td>${t.title}</td><td class="mono text-sm">${t.due||'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td></tr>`).join('')}</tbody></table></div>`}
+        ${todos.length===0?`<div class="empty"><div class="icon">✅</div><p>ToDoがありません</p></div>`:`<div class="card"><table class="table"><thead><tr><th></th><th>タスク</th><th>期限</th><th>優先度</th><th></th></tr></thead><tbody>${todos.map(t=>`<tr class="${t.done?'done':''}"><td onclick="toggleTodo('${t.id}')" style="cursor:pointer"><div class="todo-check ${t.done?'done':''}"></div></td><td onclick="toggleTodo('${t.id}')" style="cursor:pointer">${t.title}</td><td class="mono text-sm">${t.due||'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td><td><button class="btn btn-secondary btn-sm" style="color:var(--red);padding:4px 8px" onclick="deleteTodo('${t.id}');event.stopPropagation()">削除</button></td></tr>`).join('')}</tbody></table></div>`}
         ${visits.length>0?`<div class="ai-panel" style="margin-top:16px">
           <div class="ai-panel-header">
             <span class="ai-badge">AI</span>
@@ -648,10 +724,8 @@ ${cust.ai_sheet.slice(0,4000)}`;
       const m = raw.match(/\{[\s\S]*\}/);
       if(!m) throw new Error('JSON not found');
       const summary = JSON.parse(m[0]);
-      // DBに保存
-      const customers = DB.get('customers');
-      const idx = customers.findIndex(c=>c.id===cid);
-      if(idx!==-1){ customers[idx].ai_summary=summary; DB.set('customers',customers); }
+      // Supabaseに保存
+      try{ await DB.update('customers',cid,{ai_summary:summary}); }catch(e){ console.warn('summary save failed:',e); }
       if(summaryEl) summaryEl.innerHTML = window.renderSummaryHTML(summary);
     } catch(e) {
       if(summaryEl){
@@ -678,14 +752,10 @@ ${cust.ai_sheet.slice(0,4000)}`;
     try{
       const data=await callClaudeAPI([{role:'user',content:prompt}],500);
       const text=data.content?.find(b=>b.type==='text')?.text||'AIの応答を取得できませんでした。';
-      // DBに保存（次回開いたとき自動で表示される）
-      const customers=DB.get('customers');
-      const idx=customers.findIndex(c=>c.id===cid);
-      if(idx!==-1){
-        customers[idx].ai_advice=text;
-        customers[idx].ai_advice_date=new Date().toLocaleDateString('ja-JP');
-        DB.set('customers',customers);
-      }
+      // Supabaseに保存（次回開いたとき自動で表示される）
+      try{
+        await DB.update('customers',cid,{ai_advice:text,ai_advice_date:new Date().toLocaleDateString('ja-JP')});
+      }catch(e){ console.warn('advice save failed:',e); }
       if(aiEl)aiEl.innerHTML=text.split("\n").join("<br>");
       if(genBtn){genBtn.disabled=false;genBtn.innerHTML='<svg viewBox="0 0 24 24" style="width:12px;height:12px;stroke:currentColor;fill:none;stroke-width:2"><path d="M12 2a10 10 0 1 0 10 10"/><path d="M22 2 12 12"/><path d="m16 2 6 0 0 6"/></svg> 再生成';}
     }catch(e){
@@ -905,14 +975,13 @@ ${text.slice(0,3000)}`;
       if(el){el.className='rank-card'+(x===r?' sel-'+r:'');}
     });
   };
-  window.saveCustomer=function(eid){
+  window.saveCustomer=async function(eid){
     const company=document.getElementById('f-company').value.trim();
     if(!company){alert('会社名は必須です');return;}
-    // 役職: カスタム入力を優先
     const titleSelect=document.getElementById('f-contact-title').value;
     const titleCustom=document.getElementById('f-contact-title-custom').value.trim();
     const contact_title=titleCustom||titleSelect;
-    const customers=DB.get('customers');
+    const existing=eid?DB.get('customers').find(c=>c.id===eid):null;
     const newC={
       id:eid||DB.id(), company,
       industry:document.getElementById('f-industry').value,
@@ -929,18 +998,20 @@ ${text.slice(0,3000)}`;
       rank:document.getElementById('f-rank').value,
       phase:document.getElementById('f-phase').value,
       priority:parseInt(document.getElementById('f-priority').value),
-      created_at:eid?(customers.find(c=>c.id===eid)?.created_at||new Date().toISOString()):new Date().toISOString()
+      created_at:existing?.created_at||new Date().toISOString()
     };
-    if(eid){const i=customers.findIndex(c=>c.id===eid);customers[i]=newC;}else{customers.push(newC);}
-    DB.set('customers',customers);navigate('customer/detail',{id:newC.id});
+    try{
+      await DB.upsert('customers', newC);
+      navigate('customer/detail',{id:newC.id});
+    }catch(e){ alert('保存に失敗しました: '+e.message); }
   };
 
-  window.deleteCustomer=function(eid){
+  window.deleteCustomer=async function(eid){
     if(!confirm('この顧客を削除しますか？関連データも削除されます。'))return;
-    DB.set('customers',DB.get('customers').filter(c=>c.id!==eid));
-    DB.set('visits',DB.get('visits').filter(v=>v.customer_id!==eid));
-    DB.set('todos',DB.get('todos').filter(t=>t.customer_id!==eid));
-    navigate('customers');
+    try{
+      await DB.remove('customers',eid);
+      navigate('customers');
+    }catch(e){ alert('削除に失敗しました: '+e.message); }
   };
 }
 
@@ -1009,15 +1080,14 @@ function renderApo(el){
   window.apoF=s=>{filter=s;render();};
 
   // ステータスバッジをクリックするたびに順番切り替え
-  window.cycleApoStatus=function(aid, badge){
+  window.cycleApoStatus=async function(aid, badge){
     const cycle=['未訪問','アポ済み','訪問済み'];
     const apos=DB.get('apos');
     const i=apos.findIndex(a=>a.id===aid);
     if(i===-1)return;
     const cur=apos[i].status||'未訪問';
     const next=cycle[(cycle.indexOf(cur)+1)%cycle.length];
-    apos[i].status=next;
-    DB.set('apos',apos);
+    try{ await DB.update('apos',aid,{status:next}); }catch(e){ console.error(e); }
     // バッジを即時更新
     if(badge){
       badge.className='badge '+(next==='アポ済み'?'badge-green':next==='訪問済み'?'badge-purple':'badge-blue');
@@ -1108,18 +1178,19 @@ function renderApo(el){
     };
   };
 
-  window.saveApoDetail=function(aid){
-    const apos=DB.get('apos');
-    const i=apos.findIndex(a=>a.id===aid);
-    if(i===-1)return;
-    apos[i].visit_date=document.getElementById('ad-visit-date').value;
-    apos[i].visit_contact=document.getElementById('ad-contact').value;
-    apos[i].visit_contact_unknown=document.getElementById('ad-contact-unknown').checked;
-    apos[i].priority=document.getElementById('ad-priority').value;
-    apos[i].status=document.getElementById('ad-status').value;
-    apos[i].note=document.getElementById('ad-note').value;
-    DB.set('apos',apos);
-    closeModal();render();
+  window.saveApoDetail=async function(aid){
+    const changes={
+      visit_date:document.getElementById('ad-visit-date').value||null,
+      visit_contact:document.getElementById('ad-contact').value,
+      visit_contact_unknown:document.getElementById('ad-contact-unknown').checked,
+      priority:document.getElementById('ad-priority').value,
+      status:document.getElementById('ad-status').value,
+      note:document.getElementById('ad-note').value
+    };
+    try{
+      await DB.update('apos',aid,changes);
+      closeModal();render();
+    }catch(e){ alert('保存に失敗しました: '+e.message); }
   };
 
   window.apoToCustomer=function(aid){
@@ -1133,35 +1204,36 @@ function renderApo(el){
     },100);
   };
 
-  window.deleteApo=function(aid){
+  window.deleteApo=async function(aid){
     if(!confirm('削除しますか？\nゴミ箱に移動します（復元できます）'))return;
-    const apos=DB.get('apos');
-    const target=apos.find(a=>a.id===aid);
+    const target=DB.get('apos').find(a=>a.id===aid);
     if(!target)return;
-    target.deleted_at=new Date().toISOString();
-    const trash=DB.get('apo_trash');
-    trash.push(target);
-    DB.set('apo_trash',trash);
-    DB.set('apos',apos.filter(a=>a.id!==aid));
-    render();
+    try{
+      await DB.insert('apo_trash',{...target, deleted_at:new Date().toISOString()});
+      await DB.remove('apos',aid);
+      render();
+    }catch(e){ alert('削除に失敗しました: '+e.message); }
   };
 
-  window.restoreApo=function(aid){
-    const trash=DB.get('apo_trash');
-    const target=trash.find(a=>a.id===aid);
+  window.restoreApo=async function(aid){
+    const target=DB.get('apo_trash').find(a=>a.id===aid);
     if(!target)return;
-    delete target.deleted_at;
-    const apos=DB.get('apos');
-    apos.push(target);
-    DB.set('apos',apos);
-    DB.set('apo_trash',trash.filter(a=>a.id!==aid));
-    render();
+    const restored={...target};
+    delete restored.deleted_at;
+    try{
+      await DB.insert('apos',restored);
+      await DB.remove('apo_trash',aid);
+      render();
+    }catch(e){ alert('復元に失敗しました: '+e.message); }
   };
 
-  window.emptyTrash=function(){
+  window.emptyTrash=async function(){
     if(!confirm('ゴミ箱を完全に空にしますか？\nこの操作は元に戻せません。'))return;
-    DB.set('apo_trash',[]);
-    render();
+    const ids=DB.get('apo_trash').map(a=>a.id);
+    try{
+      await Promise.all(ids.map(id=>DB.remove('apo_trash',id)));
+      render();
+    }catch(e){ alert('削除に失敗しました: '+e.message); }
   };
 
   render();
@@ -1334,23 +1406,24 @@ ${text.slice(0,3000)}`;
   // ページ描画後に初期ランク(A)を視覚的に選択状態にする
   setTimeout(()=>window.faSetRank&&window.faSetRank('A'), 0);
 
-  window.saveApo=function(){
+  window.saveApo=async function(){
     const company=document.getElementById('fa-company').value.trim();
     if(!company){alert('会社名は必須です');return;}
-    const apos=DB.get('apos');
-    apos.push({
-      id:DB.id(), company,
-      address:document.getElementById('fa-address').value,
-      industry:document.getElementById('fa-industry').value,
-      phone:document.getElementById('fa-phone').value,
-      website:document.getElementById('fa-website').value||'',
-      priority:document.getElementById('fa-rank').value,
-      status:'未訪問',
-      source:document.getElementById('fa-source').value,
-      note:document.getElementById('fa-note').value,
-      created_at:new Date().toISOString()
-    });
-    DB.set('apos',apos); navigate('apo');
+    try{
+      await DB.insert('apos',{
+        id:DB.id(), company,
+        address:document.getElementById('fa-address').value,
+        industry:document.getElementById('fa-industry').value,
+        phone:document.getElementById('fa-phone').value,
+        website:document.getElementById('fa-website').value||'',
+        priority:document.getElementById('fa-rank').value,
+        status:'未訪問',
+        source:document.getElementById('fa-source').value,
+        note:document.getElementById('fa-note').value,
+        created_at:new Date().toISOString()
+      });
+      navigate('apo');
+    }catch(e){ alert('追加に失敗しました: '+e.message); }
   };
 }
 
@@ -1383,17 +1456,17 @@ function renderVisitNew(el,{customer_id}){
       </div>
     </div>
     <div style="margin-top:16px"><button class="btn btn-primary" style="padding:11px 28px;font-size:14px" onclick="saveVisit()">記録する</button></div></div>`;
-  window.saveVisit=function(){
-    const cid=document.getElementById('fv-customer').value;const content=document.getElementById('fv-content').value.trim();
-    if(!cid){alert('顧客を選択してください');return;}if(!content){alert('打合せ内容を入力してください');return;}
-    const visits=DB.get('visits');
-    visits.push({id:DB.id(),customer_id:cid,visited_at:document.getElementById('fv-date').value,content,next_action:document.getElementById('fv-action').value,next_visit:document.getElementById('fv-next').value,created_at:new Date().toISOString()});
-    DB.set('visits',visits);
-    // 訪問履歴が更新されたのでアドバイスをリセット（次回は手動で再生成）
-    const custs=DB.get('customers');
-    const ci=custs.findIndex(c=>c.id===cid);
-    if(ci!==-1){custs[ci].ai_advice=null;custs[ci].ai_advice_date=null;DB.set('customers',custs);}
-    navigate('customer/detail',{id:cid});
+  window.saveVisit=async function(){
+    const cid=document.getElementById('fv-customer').value;
+    const visitContent=document.getElementById('fv-content').value.trim();
+    if(!cid){alert('顧客を選択してください');return;}
+    if(!visitContent){alert('打合せ内容を入力してください');return;}
+    try{
+      await DB.insert('visits',{id:DB.id(),customer_id:cid,visited_at:document.getElementById('fv-date').value,content:visitContent,next_action:document.getElementById('fv-action').value,next_visit:document.getElementById('fv-next').value||null,created_at:new Date().toISOString()});
+      // アドバイスをリセット
+      await DB.update('customers',cid,{ai_advice:null,ai_advice_date:null});
+      navigate('customer/detail',{id:cid});
+    }catch(e){ alert('記録に失敗しました: '+e.message); }
   };
 }
 
@@ -1406,15 +1479,30 @@ function renderTodos(el){
       <div class="page-header"><div><h2>ToDo</h2></div><button class="btn btn-primary" onclick="openTodoModal(null)">${svgPlus} 追加</button></div>
       <div style="display:flex;gap:12px;margin-bottom:16px"><div class="tab-bar">${[['pending','未完了'],['done','完了済み'],['all','すべて']].map(([v,l])=>`<div class="tab ${filter===v?'active':''}" onclick="todoF('${v}')">${l}</div>`).join('')}</div></div>
       <div class="card"><table class="table">
-        <thead><tr><th></th><th>タスク</th><th>関連顧客</th><th>期限日</th><th>優先度</th></tr></thead>
-        <tbody>${f.length===0?`<tr><td colspan="5" style="text-align:center;padding:40px;color:var(--text3)">${filter==='done'?'完了済みタスクはありません':'タスクはありません'}</td></tr>`:f.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;const isOverdue=t.due&&t.due<today()&&!t.done;return`<tr class="${t.done?'done':''}" onclick="toggleTodo('${t.id}')"><td><div class="todo-check ${t.done?'done':''}"></div></td><td><span ${t.done?'style="text-decoration:line-through;color:var(--text3)"':''}>${t.title}</span></td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td>${t.due?`<span class="badge ${isOverdue?'badge-red':'badge-gray'} mono">${isOverdue?'⚠️ ':''}${t.due}</span>`:'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td></tr>`;}).join('')}
+        <thead><tr><th></th><th>タスク</th><th>関連顧客</th><th>期限日</th><th>優先度</th><th></th></tr></thead>
+        <tbody>${f.length===0?`<tr><td colspan="6" style="text-align:center;padding:40px;color:var(--text3)">${filter==='done'?'完了済みタスクはありません':'タスクはありません'}</td></tr>`:f.map(t=>{const c=t.customer_id?customers.find(c=>c.id===t.customer_id):null;const isOverdue=t.due&&t.due<today()&&!t.done;return`<tr class="${t.done?'done':''}"><td onclick="toggleTodo('${t.id}')" style="cursor:pointer"><div class="todo-check ${t.done?'done':''}"></div></td><td onclick="toggleTodo('${t.id}')" style="cursor:pointer"><span ${t.done?'style="text-decoration:line-through;color:var(--text3)"':''}>${t.title}</span></td><td>${c?`<span class="badge badge-blue">${c.company}</span>`:'—'}</td><td>${t.due?`<span class="badge ${isOverdue?'badge-red':'badge-gray'} mono">${isOverdue?'⚠️ ':''}${t.due}</span>`:'—'}</td><td>${t.priority==='high'?'<span class="badge badge-red">高</span>':t.priority==='medium'?'<span class="badge badge-amber">中</span>':'<span class="badge badge-gray">低</span>'}</td><td><button class="btn btn-secondary btn-sm" style="color:var(--red);padding:4px 8px" onclick="deleteTodo('${t.id}');event.stopPropagation()">削除</button></td></tr>`;}).join('')}
         </tbody>
       </table></div>`;
   }
   window.todoF=f=>{filter=f;render();};render();
 }
 
-window.toggleTodo=function(id){const todos=DB.get('todos');const i=todos.findIndex(t=>t.id===id);if(i!==-1){todos[i].done=!todos[i].done;DB.set('todos',todos);}navigate(currentPage);};
+window.toggleTodo=async function(id){
+  const todo=DB.get('todos').find(t=>t.id===id);
+  if(!todo)return;
+  try{
+    await DB.update('todos',id,{done:!todo.done});
+    navigate(currentPage);
+  }catch(e){ console.error('todo toggle failed:',e); }
+};
+
+window.deleteTodo=async function(id){
+  if(!confirm('このToDoを削除しますか？'))return;
+  try{
+    await DB.remove('todos',id);
+    navigate(currentPage);
+  }catch(e){ alert('削除に失敗しました: '+e.message); }
+};
 
 window.openTodoModal=function(customerId){
   const customers=DB.get('customers');
@@ -1429,11 +1517,12 @@ window.openTodoModal=function(customerId){
     </div>
     <div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal()">キャンセル</button><button class="btn btn-primary" onclick="saveTodo()">追加する</button></div>`);
 };
-window.saveTodo=function(){
+window.saveTodo=async function(){
   const title=document.getElementById('mt-title').value.trim();if(!title){alert('タスク名を入力してください');return;}
-  const todos=DB.get('todos');
-  todos.push({id:DB.id(),title,due:document.getElementById('mt-due').value,customer_id:document.getElementById('mt-customer').value||null,priority:document.getElementById('mt-priority').value,done:false,created_at:new Date().toISOString()});
-  DB.set('todos',todos);closeModal();navigate(currentPage);
+  try{
+    await DB.insert('todos',{id:DB.id(),title,due:document.getElementById('mt-due').value||null,customer_id:document.getElementById('mt-customer').value||null,priority:document.getElementById('mt-priority').value,done:false,created_at:new Date().toISOString()});
+    closeModal();navigate(currentPage);
+  }catch(e){ alert('追加に失敗しました: '+e.message); }
 };
 
 function openModal(html){document.getElementById('modal-content').innerHTML=html;document.getElementById('modal-overlay').classList.add('open');}
@@ -1441,7 +1530,7 @@ function closeModal(){document.getElementById('modal-overlay').classList.remove(
 function closeModalOutside(e){if(e.target===document.getElementById('modal-overlay'))closeModal();}
 
 updateApiKeyStatus();
-navigate('dash');
+initDB().then(() => navigate('dash'));
 </script>
 </body>
 </html>
