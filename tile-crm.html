@@ -560,13 +560,7 @@ function renderCustomers(el) {
   function render(){
     const f=customers.filter(c=>(filter==='all'||c.rank===filter)&&(c.company.includes(q)||c.contact.includes(q)||c.industry.includes(q)));
     el.innerHTML=`
-      <div class="page-header"><div><h2>顧客管理</h2><p>${customers.length}社登録</p></div><div style="display:flex;gap:8px">
-        <button class="btn btn-secondary" onclick="exportCSV()">
-          <svg viewBox="0 0 24 24" style="width:14px;height:14px;stroke:currentColor;fill:none;stroke-width:2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-          CSV出力
-        </button>
-        <button class="btn btn-primary" onclick="navigate('customer/new')">${svgPlus} 新規顧客登録</button>
-      </div></div>
+      <div class="page-header"><div><h2>顧客管理</h2><p>${customers.length}社登録</p></div><button class="btn btn-secondary" onclick="exportCSV()">↓ CSV出力</button><button class="btn btn-primary" onclick="navigate('customer/new')">${svgPlus} 新規顧客登録</button></div>
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
         <div class="search-wrap" style="flex:1;max-width:280px"><div class="search-icon"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg></div><input class="form-control" id="cs-s" placeholder="会社名・担当者で検索" oninput="csQ(this.value)" value="${q}"></div>
         <div class="tab-bar">${['all','S','A','B','C'].map(s=>`<div class="tab ${filter===s?'active':''}" onclick="csF('${s}')">${s==='all'?'すべて':s==='S'?'👑 S':s==='A'?'🔥 A':s==='B'?'📋 B':'🔵 C'}</div>`).join('')}</div>
@@ -643,7 +637,7 @@ function renderCustomerDetail(el,{id}) {
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h3 style="font-size:13px;font-weight:700">訪問履歴</h3><button class="btn btn-secondary btn-sm" onclick="navigate('visit/new',{customer_id:'${c.id}'})">${svgPlus} 記録</button></div>
         <div class="timeline">
-          ${visits.length===0?`<div class="empty"><div class="icon">📋</div><p>訪問履歴がありません</p></div>`:visits.map(v=>`<div class="tl-item"><div class="tl-dot">📋</div><div class="tl-body"><div class="tl-date" style="display:flex;align-items:center;justify-content:space-between">${v.visited_at}<button class="btn btn-secondary btn-sm" style="color:var(--red);padding:3px 8px;font-size:11px" onclick="deleteVisit('${v.id}','${id}');event.stopPropagation()">削除</button></div><div class="tl-text">${v.content}</div>${v.next_action?`<div class="tl-action">→ ${v.next_action}</div>`:''}${v.next_visit?`<div class="tl-next">📅 次回訪問: ${v.next_visit}</div>`:''}</div></div>`).join('')}
+          ${visits.length===0?`<div class="empty"><div class="icon">📋</div><p>訪問履歴がありません</p></div>`:visits.map(v=>`<div class="tl-item"><div class="tl-dot">📋</div><div class="tl-body"><div class="tl-date">${v.visited_at}</div><div class="tl-text">${v.content}</div>${v.next_action?`<div class="tl-action">→ ${v.next_action}</div>`:''}${v.next_visit?`<div class="tl-next">📅 次回訪問: ${v.next_visit}</div>`:''}</div></div>`).join('')}
         </div>
       </div>
       <div>
@@ -1012,13 +1006,6 @@ ${text.slice(0,3000)}`;
     }catch(e){ alert('保存に失敗しました: '+e.message); }
   };
 
-  window.deleteVisit=async function(vid,cid){
-    if(!confirm('この訪問履歴を削除しますか？'))return;
-    try{
-      await DB.remove('visits',vid);
-      navigate('customer/detail',{id:cid});
-    }catch(e){ alert('削除に失敗しました: '+e.message); }
-  };
   window.deleteCustomer=async function(eid){
     if(!confirm('この顧客を削除しますか？関連データも削除されます。'))return;
     try{
@@ -1500,26 +1487,32 @@ function renderTodos(el){
   window.todoF=f=>{filter=f;render();};render();
 }
 
+
 window.exportCSV=function(){
-  const customers=DB.get('customers');
-  const visits=DB.get('visits');
-  const headers=['会社名','業種','担当者','役職','電話','携帯','メール','ホームページ','住所','ランク','商談フェーズ','訪問回数','メモ'];
-  const rows=customers.map(c=>{
-    const vCount=visits.filter(v=>v.customer_id===c.id).length;
-    return [c.company,c.industry,c.contact,c.contact_title,c.phone,c.mobile,c.email,c.website,c.address,c.rank,c.phase,vCount,c.memo].map(v=>{
-      const s=String(v||'');
-      return s.includes(',')||s.includes('"')||s.includes('
-')?'"'+s.replace(/"/g,'""')+'"':s;
+  var customers=DB.get('customers');
+  var visits=DB.get('visits');
+  var headers=['会社名','業種','担当者','役職','電話','携帯','メール','HP','住所','ランク','フェーズ','訪問回数','メモ'];
+  var rows=customers.map(function(c){
+    var cnt=visits.filter(function(v){return v.customer_id===c.id;}).length;
+    var arr=[c.company,c.industry,c.contact,c.contact_title,c.phone,c.mobile,c.email,c.website,c.address,c.rank,c.phase,cnt,c.memo];
+    return arr.map(function(v){
+      var s=String(v||'');
+      if(s.indexOf(',')>=0||s.indexOf('"')>=0||s.indexOf('\n')>=0){
+        return '"'+s.split('"').join('""')+'"';
+      }
+      return s;
     });
   });
-  const csv='﻿'+[headers,...rows].map(r=>r.join(',')).join('
-');
-  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
-  const url=URL.createObjectURL(blob);
-  const a=document.createElement('a');
-  a.href=url;a.download='顧客リスト_'+new Date().toISOString().split('T')[0]+'.csv';
-  a.click();URL.revokeObjectURL(url);
+  var csv='\uFEFF'+[headers].concat(rows).map(function(r){return r.join(',');}).join('\n');
+  var blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='customers.csv';
+  a.click();
+  URL.revokeObjectURL(url);
 };
+
 window.toggleTodo=async function(id){
   const todo=DB.get('todos').find(t=>t.id===id);
   if(!todo)return;
