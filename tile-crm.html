@@ -637,7 +637,7 @@ function renderCustomerDetail(el,{id}) {
       <div>
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px"><h3 style="font-size:13px;font-weight:700">訪問履歴</h3><button class="btn btn-secondary btn-sm" onclick="navigate('visit/new',{customer_id:'${c.id}'})">${svgPlus} 記録</button></div>
         <div class="timeline">
-          ${visits.length===0?`<div class="empty"><div class="icon">📋</div><p>訪問履歴がありません</p></div>`:visits.map(v=>`<div class="tl-item"><div class="tl-dot">📋</div><div class="tl-body"><div class="tl-date" style="display:flex;align-items:center;justify-content:space-between">${v.visited_at}<button class="btn btn-secondary btn-sm" style="color:var(--red);padding:3px 8px;font-size:11px" onclick="deleteVisit('${v.id}','${id}');event.stopPropagation()">削除</button></div><div class="tl-text">${v.content}</div>${v.next_action?`<div class="tl-action">→ ${v.next_action}</div>`:''}${v.next_visit?`<div class="tl-next">📅 次回訪問: ${v.next_visit}</div>`:''}</div></div>`).join('')}<div class="tl-text">${v.content}</div>${v.next_action?`<div class="tl-action">→ ${v.next_action}</div>`:''}${v.next_visit?`<div class="tl-next">📅 次回訪問: ${v.next_visit}</div>`:''}</div></div>`).join('')}
+          ${visits.length===0?`<div class="empty"><div class="icon">📋</div><p>訪問履歴がありません</p></div>`:visits.map(v=>`<div class="tl-item"><div class="tl-dot">📋</div><div class="tl-body"><div class="tl-date" style="display:flex;align-items:center;justify-content:space-between">${v.visited_at}<button class="btn btn-secondary btn-sm" style="color:var(--red);padding:3px 8px;font-size:11px" onclick="deleteVisit('${v.id}','${id}');event.stopPropagation()">削除</button></div><div class="tl-text">${v.content}</div>${v.next_action?`<div class="tl-action">→ ${v.next_action}</div>`:''}${v.next_visit?`<div class="tl-next">📅 次回訪問: ${v.next_visit}</div>`:''}</div></div>`).join('')}
         </div>
       </div>
       <div>
@@ -1013,13 +1013,13 @@ ${text.slice(0,3000)}`;
       navigate('customers');
     }catch(e){ alert('削除に失敗しました: '+e.message); }
   };
-window.deleteVisit=async function(vid,cid){
+  window.deleteVisit=async function(vid,cid){
     if(!confirm('この訪問履歴を削除しますか？'))return;
     try{
       await DB.remove('visits',vid);
       navigate('customer/detail',{id:cid});
     }catch(e){ alert('削除に失敗しました: '+e.message); }
-  };  
+  };
 }
 
 function renderApo(el){
